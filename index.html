@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Calculator</title>
-
+ 
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0891b2">
@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TB Fuel">
 <meta name="mobile-web-app-capable" content="yes">
-
+ 
 <!--
   ============================================================
   TASR BharatNext — Fuel Manager
@@ -31,10 +31,10 @@
   Works fully offline; queues writes to localStorage and syncs
   when network returns. Sync status pill shows live state.
 -->
-
+ 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
+ 
 <style>
 :root{
   --bg:#ffffff; --surface:#f8fafc; --surface-2:#f1f5f9;
@@ -54,7 +54,7 @@ body{
 }
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
-
+ 
 /* ==================== CALCULATOR (Apple-style fullscreen) ==================== */
 html{background:#000}
 #calc-screen{
@@ -107,7 +107,7 @@ html{background:#000}
 }
 /* Ensure dashboard has its own bg over the black html */
 #dash-screen{background:var(--surface)}
-
+ 
 /* ==================== APP SHELL ==================== */
 .screen{display:none;min-height:100vh}
 .screen.active{display:block}
@@ -120,17 +120,24 @@ html{background:#000}
 .topbar-spacer{flex:1}
 .who{font-size:12px;color:var(--text-muted);display:flex;flex-direction:column;align-items:flex-end;line-height:1.2}
 .who b{color:var(--text);font-size:13px}
-
+ 
 .sync-pill{
   display:inline-flex;align-items:center;gap:5px;
-  padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600;
+  padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;
 }
-.sync-pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.sync-pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+@keyframes tasrBlink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.85)} }
+.sync-live{background:#dcfce7;color:#15803d}
+.sync-live .dot{animation:tasrBlink 1.3s infinite}
+.sync-pending{background:#fef3c7;color:#a16207}
+.sync-pending .dot{animation:tasrBlink 1.0s infinite}
+.sync-disconnect{background:#fee2e2;color:#b91c1c}
+.sync-disconnect .dot{animation:none}
+/* Legacy class aliases kept for backward compatibility */
 .sync-online{background:#dcfce7;color:#15803d}
-.sync-offline{background:#fee2e2;color:#b91c1c}
 .sync-syncing{background:#fef3c7;color:#a16207}
-.sync-pending{background:#e0e7ff;color:#3730a3}
-
+.sync-offline{background:#fee2e2;color:#b91c1c}
+ 
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
   padding:8px 14px;border-radius:var(--radius-sm);font-weight:600;font-size:13px;
@@ -145,9 +152,10 @@ html{background:#000}
 .btn.danger:hover{background:#dc2626}
 .btn.success{background:var(--success)}
 .btn.small{padding:5px 10px;font-size:12px}
+.btn.xs{padding:2px 8px;font-size:11px;border-radius:5px}
 .btn.icon{padding:6px 8px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-
+ 
 /* ==================== LOGIN ==================== */
 #login-screen{display:none;align-items:center;justify-content:center;padding:24px;
   background:linear-gradient(180deg,#ecfeff 0%,#f8fafc 100%);}
@@ -175,7 +183,7 @@ html{background:#000}
 .msg{padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
 .msg.err{background:#fee2e2;color:#991b1b}
 .msg.ok{background:#dcfce7;color:#166534}
-
+ 
 /* ==================== DASHBOARD ==================== */
 .tabbar{
   background:#fff;border-bottom:1px solid var(--border);
@@ -187,32 +195,61 @@ html{background:#000}
   border-bottom:2px solid transparent;white-space:nowrap;
 }
 .tab.active{color:var(--accent-dark);border-bottom-color:var(--accent)}
-
+ 
 .page{padding:14px;display:none;max-width:1100px;margin:0 auto}
 .page.active{display:block}
-
+ 
 .section{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
 .section-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;flex-wrap:wrap}
 .section-h h3{font-size:14px;font-weight:700;letter-spacing:-.2px}
 .section-h .sub{font-size:11px;color:var(--text-muted);font-weight:500}
-
+ 
 .grid{display:grid;gap:10px}
 .grid-2{grid-template-columns:repeat(2,1fr)}
 .grid-3{grid-template-columns:repeat(3,1fr)}
 @media(max-width:600px){.grid-3{grid-template-columns:1fr 1fr}.grid-2{grid-template-columns:1fr}}
-
+ 
 table{width:100%;border-collapse:collapse;font-size:13px}
 table th{text-align:left;padding:8px 10px;background:var(--surface-2);font-weight:600;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--border)}
 table td{padding:8px 10px;border-bottom:1px solid var(--surface-2);vertical-align:top}
 table tbody tr:hover{background:var(--surface)}
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-
+ 
 .kpi{background:linear-gradient(135deg,#ecfeff 0%,#cffafe 100%);border:1px solid #a5f3fc;border-radius:var(--radius);padding:12px}
 .kpi .lbl{font-size:11px;color:var(--accent-dark);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
 .kpi .val{font-size:22px;font-weight:700;color:var(--text);margin-top:2px}
 .kpi .sub{font-size:11px;color:var(--text-muted);margin-top:2px}
-
-/* Bowser stock card */
+ 
+/* Admin lock button — fixed top-right, accessible from any screen */
+.admin-btn{
+  position:fixed;top:8px;right:8px;z-index:200;
+  width:30px;height:30px;border-radius:8px;
+  background:rgba(15,23,42,.15);color:rgba(255,255,255,.92);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;border:1px solid rgba(255,255,255,.15);
+  backdrop-filter:blur(8px);
+  transition:background .15s,transform .05s;
+}
+.admin-btn:active{transform:scale(.92)}
+.admin-btn:hover{background:rgba(15,23,42,.3)}
+/* When on a light-bg screen, swap colors */
+body.lightbg .admin-btn{
+  background:rgba(255,255,255,.7);color:#0f172a;border-color:var(--border-dark);
+}
+ 
+/* Disabled screen */
+#disabled-screen{display:none;min-height:100vh;align-items:center;justify-content:center;padding:24px;
+  background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);color:#fff}
+#disabled-screen.active{display:flex}
+.disabled-card{
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  border-radius:18px;padding:36px 28px;max-width:420px;width:100%;text-align:center;
+  backdrop-filter:blur(8px);
+}
+.disabled-card .lock-big{font-size:56px;margin-bottom:14px}
+.disabled-card h2{font-size:22px;font-weight:700;margin-bottom:10px;letter-spacing:-.3px}
+.disabled-card .msg-text{font-size:15px;line-height:1.5;color:rgba(255,255,255,.85);white-space:pre-wrap}
+.disabled-card .footnote{margin-top:24px;font-size:11px;color:rgba(255,255,255,.5)}
 .bowser-card{
   background:#fff;border:1px solid var(--border);border-radius:var(--radius);
   padding:12px;box-shadow:var(--shadow);
@@ -226,7 +263,7 @@ table tbody tr:hover{background:var(--surface)}
 .bowser-meta{font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center}
 .bowser-meta .refill-btn{font-size:11px;padding:3px 10px;background:var(--accent);color:#fff;border-radius:999px;font-weight:600}
 .bowser-meta .refill-btn:hover{background:var(--accent-dark)}
-
+ 
 /* Bowser stock banner (above source pills in new entry) */
 .bowser-banner{
   display:flex;gap:10px;padding:10px 12px;background:var(--surface);
@@ -238,16 +275,16 @@ table tbody tr:hover{background:var(--surface)}
 .bowser-banner .b-item .val.low{color:var(--danger)}
 .bowser-banner .b-item .val.mid{color:var(--warn)}
 .bowser-banner .b-item .val.ok{color:var(--success)}
-
+ 
 .empty{text-align:center;padding:30px 20px;color:var(--text-muted);font-size:13px}
 .empty .em{font-size:30px;margin-bottom:6px}
-
+ 
 .badge{display:inline-block;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:600}
 .badge.ok{background:#dcfce7;color:#166534}
 .badge.off{background:#fee2e2;color:#991b1b}
 .badge.warn{background:#fef3c7;color:#92400e}
 .badge.info{background:#dbeafe;color:#1e40af}
-
+ 
 .row-actions{display:flex;gap:6px;flex-wrap:wrap}
 .icon-btn{
   width:28px;height:28px;border-radius:6px;display:inline-flex;align-items:center;
@@ -256,7 +293,7 @@ table tbody tr:hover{background:var(--surface)}
 .icon-btn:hover{background:var(--surface)}
 .icon-btn.danger{color:var(--danger)}
 .icon-btn.danger:hover{background:#fee2e2}
-
+ 
 /* Modal */
 .modal-bg{
   position:fixed;inset:0;background:rgba(15,23,42,.55);
@@ -271,7 +308,7 @@ table tbody tr:hover{background:var(--surface)}
 .modal-h h3{font-size:16px;font-weight:700}
 .modal-x{font-size:22px;color:var(--text-muted);width:30px;height:30px;border-radius:6px}
 .modal-x:hover{background:var(--surface-2)}
-
+ 
 /* Toast */
 .toast{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
@@ -282,10 +319,10 @@ table tbody tr:hover{background:var(--surface)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:var(--danger)}
 .toast.ok{background:var(--success)}
-
+ 
 /* Entry form specifics */
 .source-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-
+ 
 /* PIN Pad */
 .pin-section{background:var(--surface);border-radius:12px;padding:14px;margin-bottom:8px}
 .pin-display{display:flex;justify-content:center;gap:12px;margin-bottom:14px;padding:8px;min-height:28px;align-items:center;flex-wrap:wrap}
@@ -308,18 +345,18 @@ table tbody tr:hover{background:var(--surface)}
   color:var(--text-muted);text-align:center;transition:all .15s;
 }
 .source-pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-
+ 
 .entry-meta{display:flex;gap:10px;font-size:11px;color:var(--text-muted);flex-wrap:wrap;margin-top:4px}
 .entry-meta b{color:var(--text)}
-
+ 
 .cf-row{display:flex;gap:8px;align-items:center;padding:8px;background:var(--surface);border-radius:6px;margin-bottom:6px}
 .cf-row input,.cf-row select{padding:5px 8px;border:1px solid var(--border-dark);border-radius:4px;font-size:12px;background:#fff}
 .cf-row input[type="checkbox"]{width:auto}
-
+ 
 .diff-block{background:var(--surface);border-left:3px solid var(--warn);padding:8px 10px;border-radius:4px;margin-top:6px;font-size:12px}
 .diff-block .old{color:var(--danger);text-decoration:line-through}
 .diff-block .new{color:var(--success);font-weight:600}
-
+ 
 /* Searchable dropdown for vehicles */
 .sd-wrap{position:relative}
 .sd-results{
@@ -341,7 +378,7 @@ table tbody tr:hover{background:var(--surface)}
 .sd-item .sd-meta .sd-pill{display:inline-block;padding:1px 6px;background:var(--surface-2);border-radius:999px;margin-right:4px}
 .sd-empty{padding:18px 12px;text-align:center;color:var(--text-muted);font-size:12px}
 .sd-selected{background:#ecfeff;border-color:var(--accent)!important}
-
+ 
 @media(max-width:520px){
   .topbar{padding:8px 12px}
   .brand{font-size:13px}
@@ -353,7 +390,20 @@ table tbody tr:hover{background:var(--surface)}
 </style>
 </head>
 <body>
-
+ 
+<!-- Admin lock button — fixed top-right, accessible from any screen -->
+<button class="admin-btn" id="admin-btn" title="Administration" onclick="openAdminLogin()">🔒</button>
+ 
+<!-- Disabled screen — shown when admin has disabled the app -->
+<div id="disabled-screen" class="screen">
+  <div class="disabled-card">
+    <div class="lock-big">🔒</div>
+    <h2>Service Unavailable</h2>
+    <p class="msg-text" id="disabled-message-text">Loading…</p>
+    <div class="footnote">Contact your administrator for access</div>
+  </div>
+</div>
+ 
 <!-- ==================== CALCULATOR SCREEN ==================== -->
 <div id="calc-screen" class="screen active">
   <div class="calc">
@@ -384,20 +434,20 @@ table tbody tr:hover{background:var(--surface)}
     </div>
   </div>
 </div>
-
+ 
 <!-- ==================== LOGIN SCREEN ==================== -->
 <div id="login-screen" class="screen">
   <div class="login-card">
     <div class="login-title">TASR <span style="color:var(--accent-dark)">BharatNext</span></div>
     <div class="login-sub">Fuel Manager · Secure Login</div>
-
+ 
     <div class="role-tabs">
       <button class="role-tab active" data-role="manager">Diesel Manager</button>
-      <button class="role-tab" data-role="owner">Owner</button>
+      <button class="role-tab" data-role="owner">🔒 Admin</button>
     </div>
-
+ 
     <div id="login-msg"></div>
-
+ 
     <div id="login-manager">
       <div class="form-row">
         <label>Select your name</label>
@@ -408,32 +458,32 @@ table tbody tr:hover{background:var(--surface)}
         <div id="login-mgr-pin"></div>
       </div>
     </div>
-
+ 
     <div id="login-owner" style="display:none">
       <div class="form-row">
-        <label>Owner PIN</label>
+        <label>Admin PIN</label>
         <div id="login-owner-pin"></div>
       </div>
     </div>
-
+ 
     <button class="btn ghost" id="login-back" style="width:100%;margin-top:8px">← Back to calculator</button>
   </div>
 </div>
-
+ 
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v2.0</span></div>
+    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v2.1</span></div>
     <span id="sync-pill" class="sync-pill sync-online"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
     <button class="btn ghost small" id="logout-btn">Logout</button>
   </div>
-
+ 
   <div class="tabbar" id="tabbar"></div>
   <div id="pages"></div>
 </div>
-
+ 
 <!-- Modal -->
 <div class="modal-bg" id="modal">
   <div class="modal">
@@ -444,12 +494,12 @@ table tbody tr:hover{background:var(--surface)}
     <div id="modal-body"></div>
   </div>
 </div>
-
+ 
 <div class="toast" id="toast"></div>
-
+ 
 <script>
 'use strict';
-
+ 
 // PWA service worker registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -470,7 +520,7 @@ if ('serviceWorker' in navigator) {
       .catch(e => console.warn('[TASR] SW failed:', e));
   });
 }
-
+ 
 // ============================================================
 // CONFIG — paste your Supabase credentials here
 // ============================================================
@@ -483,7 +533,7 @@ const DEVICE_ID = (() => {
   if(!d){ d = 'dev_'+Math.random().toString(36).slice(2,10); localStorage.setItem('tasr_device_id',d); }
   return d;
 })();
-
+ 
 // ============================================================
 // SUPABASE INIT
 // ============================================================
@@ -492,7 +542,7 @@ if(SUPABASE_URL && SUPABASE_ANON){
   try{ sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON); }
   catch(e){ console.warn('Supabase init failed', e); }
 }
-
+ 
 // ============================================================
 // STATE
 // ============================================================
@@ -510,6 +560,9 @@ const state = {
     bowser_t1_stock: '3200',
     bowser_t2_capacity: '3200',
     bowser_t2_stock: '3200',
+    admin_app_enabled: 'true',
+    admin_owner_enabled: 'true',
+    admin_disable_message: 'Service temporarily unavailable. Please contact your administrator.',
   },
   pendingOps: [],          // offline queue
   online: navigator.onLine,
@@ -518,9 +571,9 @@ const state = {
   avgMode: localStorage.getItem('tasr_avg_mode') || 'trip', // 'trip' or 'full2full'
   analysisVehicleId: null,
 };
-
+ 
 const LS_KEY = 'tasr_fuel_state_v1';
-
+ 
 function persist(){
   localStorage.setItem(LS_KEY, JSON.stringify({
     vehicles:state.vehicles, managers:state.managers,
@@ -541,7 +594,7 @@ function loadPersisted(){
     });
   }catch(e){ console.warn('load failed', e); }
 }
-
+ 
 // ============================================================
 // UTILITIES
 // ============================================================
@@ -612,12 +665,12 @@ const fmtD = ts => {
   return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'});
 };
 const escapeHtml = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
+ 
 function toast(msg, type=''){
   const t = $('#toast'); t.textContent = msg; t.className = 'toast show ' + type;
   setTimeout(()=>{ t.className='toast'; }, 2500);
 }
-
+ 
 function openModal(title, html){
   $('#modal-title').textContent = title;
   $('#modal-body').innerHTML = html;
@@ -625,13 +678,13 @@ function openModal(title, html){
 }
 function closeModal(){ $('#modal').classList.remove('active'); }
 window.closeModal = closeModal;
-
+ 
 // ============================================================
 // BOWSER STOCK (T1 & T2 — capacity 3200 L each)
 // ============================================================
 function getBowserStock(tank){ return +(state.settings['bowser_'+tank+'_stock']) || 0; }
 function getBowserCapacity(tank){ return +(state.settings['bowser_'+tank+'_capacity']) || 3200; }
-
+ 
 // Apply the stock delta when an entry is created, updated, or deleted.
 // Pass oldEntry=null for new entries; newEntry=null when the entry is being removed.
 function applyBowserDelta(oldEntry, newEntry){
@@ -648,7 +701,7 @@ function applyBowserDelta(oldEntry, newEntry){
     updateSetting(key, next);
   });
 }
-
+ 
 // ============================================================
 // 10 manager slots — ensure local array always has 10 entries
 // ============================================================
@@ -660,17 +713,17 @@ function ensureManagerSlots(){
   }
   state.managers.sort((a,b)=>a.id-b.id);
 }
-
+ 
 // ============================================================
 // CALCULATOR
 // ============================================================
 const calcState = { expr:'', history:'', secret:'' };
-
+ 
 function calcRender(){
   $('#calc-current').textContent = calcState.expr || '0';
   $('#calc-history').innerHTML = calcState.history || '&nbsp;';
 }
-
+ 
 function calcPress(k){
   // track secret unlock — any digit pressed appends; non-digit clears
   if(/^[0-9]$/.test(k)){
@@ -687,7 +740,7 @@ function calcPress(k){
   } else {
     calcState.secret = '';
   }
-
+ 
   if(k==='C'){ calcState.expr=''; calcState.history=''; calcRender(); return; }
   if(k==='='){
     try{
@@ -712,12 +765,12 @@ function calcPress(k){
   calcState.expr += k;
   calcRender();
 }
-
+ 
 $('#calc-screen').addEventListener('click', e=>{
   const b = e.target.closest('[data-k]');
   if(b) calcPress(b.dataset.k);
 });
-
+ 
 // keyboard support
 document.addEventListener('keydown', e=>{
   if(!$('#calc-screen').classList.contains('active')) return;
@@ -729,7 +782,7 @@ document.addEventListener('keydown', e=>{
   else if(e.key==='Backspace') { calcState.expr = calcState.expr.slice(0,-1); calcRender(); }
   else if(e.key==='Escape') calcPress('C');
 });
-
+ 
 // ============================================================
 // SCREENS
 // ============================================================
@@ -737,34 +790,153 @@ function showScreen(id){
   $$('.screen').forEach(s=>s.classList.remove('active'));
   $('#'+id).classList.add('active');
 }
-function gotoCalc(){ showScreen('calc-screen'); calcState.expr=''; calcState.history=''; calcRender(); }
+function gotoCalc(){ setLightBg(false); showScreen('calc-screen'); calcState.expr=''; calcState.history=''; calcRender(); }
 function gotoLogin(){
+  setLightBg(true);
   showScreen('login-screen');
   $('#login-msg').innerHTML='';
   refreshManagerLoginDropdown();
   setupLoginPinPads();
 }
 function gotoDash(){
+  setLightBg(true);
   showScreen('dash-screen'); renderDash();
   // Force fresh pull on every dashboard entry so manager sees latest vehicles/fields
   if(sb && state.online){
     pullAll().then(()=>{ if(state.user) renderDash({auto:true}); });
   }
 }
-
+ 
 function refreshManagerLoginDropdown(){
   const sel = $('#login-mgr-select');
   const active = state.managers.filter(m=>m.active);
   sel.innerHTML = '<option value="">— select —</option>' + active.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
 }
-
+ 
 // On boot, decide initial screen: calculator (if disguise on) or login
 function bootScreen(){
+  // Admin kill switch — overrides everything
+  if(state.settings.admin_app_enabled === 'false'){
+    showDisabledScreen();
+    return;
+  }
   const enabled = state.settings.calculator_enabled !== 'false';
   if(enabled){ gotoCalc(); }
   else { gotoLogin(); }
 }
-
+ 
+// Track body class for admin button contrast styling
+function setLightBg(on){
+  if(on) document.body.classList.add('lightbg');
+  else   document.body.classList.remove('lightbg');
+}
+ 
+// ============================================================
+// ADMIN (super-admin kill switch)
+// ============================================================
+const ADMIN_PASSWORD = 'Tasr@jvs.com';
+ 
+window.openAdminLogin = function(){
+  openModal('🔒 Administration Access', `
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Enter administrator password to access system controls.</p>
+    <div class="form-row"><label>Password</label>
+      <input type="password" id="adm-pwd" autocomplete="off" placeholder="Administrator password">
+    </div>
+    <div id="adm-login-msg"></div>
+    <button class="btn" style="width:100%" onclick="adminLogin()">Unlock</button>
+  `);
+  setTimeout(()=>{
+    const el = document.getElementById('adm-pwd');
+    if(el){
+      el.focus();
+      el.addEventListener('keydown', ev => { if(ev.key === 'Enter') adminLogin(); });
+    }
+  }, 100);
+};
+ 
+window.adminLogin = function(){
+  const pwd = document.getElementById('adm-pwd').value;
+  if(pwd === ADMIN_PASSWORD){
+    openAdminPanel();
+  } else {
+    document.getElementById('adm-login-msg').innerHTML = '<div class="msg err">Incorrect admin password</div>';
+    document.getElementById('adm-pwd').value = '';
+  }
+};
+ 
+window.openAdminPanel = function(){
+  const appEnabled   = state.settings.admin_app_enabled !== 'false';
+  const ownerEnabled = state.settings.admin_owner_enabled !== 'false';
+  const message      = state.settings.admin_disable_message || 'Service temporarily unavailable.';
+ 
+  openModal('🔒 Administration Panel', `
+    <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--surface);border-radius:8px;cursor:pointer;margin-bottom:10px">
+      <input type="checkbox" id="ap-app-enabled" ${appEnabled?'checked':''} style="width:auto;transform:scale(1.3);flex-shrink:0">
+      <div>
+        <div style="font-weight:600">App Active</div>
+        <div style="font-size:12px;color:var(--text-muted)">When OFF, app shows the disable message to everyone</div>
+      </div>
+    </label>
+ 
+    <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--surface);border-radius:8px;cursor:pointer;margin-bottom:14px">
+      <input type="checkbox" id="ap-owner-enabled" ${ownerEnabled?'checked':''} style="width:auto;transform:scale(1.3);flex-shrink:0">
+      <div>
+        <div style="font-weight:600">Admin Role Access</div>
+        <div style="font-size:12px;color:var(--text-muted)">When OFF, Admin can't login. Diesel managers still work.</div>
+      </div>
+    </label>
+ 
+    <div class="form-row">
+      <label>Disable Message</label>
+      <textarea id="ap-message" rows="3" style="width:100%;padding:10px;border:1px solid var(--border-dark);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical">${escapeHtml(message)}</textarea>
+      <div class="hint">Shown when app is disabled. e.g. "Payment due", "Technical issue, please wait"</div>
+    </div>
+ 
+    <button class="btn" style="width:100%;margin-top:6px" onclick="saveAdminSettings()">Save Changes</button>
+  `);
+};
+ 
+window.saveAdminSettings = function(){
+  updateSetting('admin_app_enabled',   $('#ap-app-enabled').checked ? 'true' : 'false');
+  updateSetting('admin_owner_enabled', $('#ap-owner-enabled').checked ? 'true' : 'false');
+  updateSetting('admin_disable_message', $('#ap-message').value.trim() || 'Service temporarily unavailable.');
+  closeModal(); toast('Administration settings saved','ok');
+  applyAdminState();
+};
+ 
+function applyAdminState(){
+  // If app is disabled → show disabled screen and force out
+  if(state.settings.admin_app_enabled === 'false'){
+    showDisabledScreen();
+    return;
+  }
+  // If admin role disabled and current user is owner → force logout
+  if(state.settings.admin_owner_enabled === 'false' && state.user && state.user.role === 'owner'){
+    state.user = null;
+    bootScreen();
+    toast('Admin access disabled by administrator','err');
+    return;
+  }
+  // If currently showing disabled screen but app is re-enabled → go back to normal
+  const disabled = $('#disabled-screen');
+  if(disabled && disabled.classList.contains('active')){
+    bootScreen();
+    if(state.user) renderDash();
+  }
+}
+ 
+function showDisabledScreen(){
+  // Hide all other screens
+  $$('.screen').forEach(s => s.classList.remove('active'));
+  const ds = $('#disabled-screen');
+  if(ds){
+    ds.classList.add('active');
+    const msgEl = $('#disabled-message-text');
+    if(msgEl) msgEl.textContent = state.settings.admin_disable_message || 'Service temporarily unavailable.';
+  }
+  document.body.classList.remove('lightbg');
+}
+ 
 // ============================================================
 // PIN PAD COMPONENT
 // ============================================================
@@ -773,7 +945,7 @@ function makePinPad(containerEl, opts){
   let pin = '';
   const minDots = opts.minDots || 4;
   const maxLen = opts.maxLen || 8;
-
+ 
   containerEl.innerHTML = `
     <div class="pin-section">
       <div class="pin-display"></div>
@@ -795,17 +967,25 @@ function makePinPad(containerEl, opts){
   `;
   const display = containerEl.querySelector('.pin-display');
   const pad = containerEl.querySelector('.pin-pad');
-
+ 
   function render(){
     const shown = Math.max(pin.length, minDots);
     display.innerHTML = Array.from({length:shown}, (_,i) =>
       `<span class="pin-dot ${i<pin.length?'filled':''}"></span>`).join('');
   }
+  function tryAutoSubmit(){
+    if(!opts.expectedLength || !opts.onSubmit) return false;
+    const expected = typeof opts.expectedLength === 'function' ? opts.expectedLength() : opts.expectedLength;
+    if(expected && pin.length === expected){
+      setTimeout(() => { try { opts.onSubmit(pin); } catch(e){ console.error(e); } }, 120);
+      return true;
+    }
+    return false;
+  }
   function press(d){
-    if(d==='back') pin = pin.slice(0,-1);
-    else if(d==='ok'){ if(opts.onSubmit) opts.onSubmit(pin); return; }
-    else if(/^\d$/.test(d) && pin.length<maxLen) pin += d;
-    render();
+    if(d==='back'){ pin = pin.slice(0,-1); render(); return; }
+    if(d==='ok'){ if(opts.onSubmit) opts.onSubmit(pin); return; }
+    if(/^\d$/.test(d) && pin.length<maxLen){ pin += d; render(); tryAutoSubmit(); return; }
   }
   pad.addEventListener('click', e=>{
     const b = e.target.closest('[data-d]'); if(b) press(b.dataset.d);
@@ -816,23 +996,35 @@ function makePinPad(containerEl, opts){
     clear: ()=>{ pin=''; render(); },
   };
 }
-
+ 
 let _mgrPinPad = null, _ownerPinPad = null;
 function setupLoginPinPads(){
   _mgrPinPad = makePinPad($('#login-mgr-pin'), {
     onSubmit: pin => doManagerLogin(pin),
+    expectedLength: () => {
+      const id = parseInt($('#login-mgr-select').value);
+      const m = state.managers.find(m=>m.id===id);
+      return m && m.password ? m.password.length : 0;
+    },
   });
   _ownerPinPad = makePinPad($('#login-owner-pin'), {
     onSubmit: pin => doOwnerLogin(pin),
+    expectedLength: () => (state.settings.owner_password || '').length || 4,
   });
 }
 function doOwnerLogin(pin){
+  // Check if admin has disabled owner access
+  if(state.settings.admin_owner_enabled === 'false'){
+    $('#login-msg').innerHTML = '<div class="msg err">Admin access disabled by administrator</div>';
+    if(_ownerPinPad) _ownerPinPad.clear();
+    return;
+  }
   if(pin && pin === state.settings.owner_password){
-    state.user = {role:'owner', name:'Owner'};
+    state.user = {role:'owner', name:'Admin'};
     state.activeTab = 'overview';
     gotoDash();
   } else {
-    $('#login-msg').innerHTML = '<div class="msg err">Incorrect owner PIN</div>';
+    $('#login-msg').innerHTML = '<div class="msg err">Incorrect Admin PIN</div>';
     if(_ownerPinPad) _ownerPinPad.clear();
   }
 }
@@ -845,7 +1037,7 @@ function doManagerLogin(pin){
   state.activeTab = 'new-entry';
   gotoDash();
 }
-
+ 
 // ============================================================
 // LOGIN
 // ============================================================
@@ -859,33 +1051,29 @@ $$('.role-tab').forEach(t=>t.addEventListener('click', ()=>{
   if(_mgrPinPad) _mgrPinPad.clear();
   if(_ownerPinPad) _ownerPinPad.clear();
 }));
-
+ 
 $('#login-back').addEventListener('click', gotoCalc);
-
+ 
 $('#logout-btn').addEventListener('click', ()=>{
   state.user = null;
   bootScreen();
 });
-
+ 
 // ============================================================
 // SYNC LAYER
 // ============================================================
 function updateSyncPill(){
   const p = $('#sync-pill'), t = $('#sync-text');
-  if(!sb){
-    p.className = 'sync-pill sync-pending';
-    t.textContent = 'Local only';
-    return;
-  }
-  if(state.syncing){ p.className='sync-pill sync-syncing'; t.textContent='Syncing…'; return; }
-  if(!state.online){ p.className='sync-pill sync-offline'; t.textContent='Offline'; return; }
+  if(!sb){ p.className = 'sync-pill sync-disconnect'; t.textContent = 'Disconnect'; return; }
+  if(state.syncing){ p.className='sync-pill sync-pending'; t.textContent='Syncing…'; return; }
+  if(!state.online){ p.className='sync-pill sync-disconnect'; t.textContent='Disconnect'; return; }
   if(state.pendingOps.length>0){ p.className='sync-pill sync-pending'; t.textContent='Pending '+state.pendingOps.length; return; }
-  p.className = 'sync-pill sync-online'; t.textContent = 'Online · Synced';
+  p.className = 'sync-pill sync-live'; t.textContent = 'Live';
 }
-
+ 
 window.addEventListener('online', ()=>{ state.online = true; updateSyncPill(); trySync(); });
 window.addEventListener('offline',()=>{ state.online = false; updateSyncPill(); });
-
+ 
 async function pullAll(){
   if(!sb) return;
   try{
@@ -916,13 +1104,13 @@ async function pullAll(){
   }catch(e){ console.warn('pull error', e); }
   finally{ state.syncing=false; updateSyncPill(); }
 }
-
+ 
 function queueOp(op){
   state.pendingOps.push({...op, ts:Date.now(), id:uuid()});
   persist(); updateSyncPill();
   if(state.online && sb) trySync();
 }
-
+ 
 async function trySync(){
   if(!sb || !state.online || state.syncing || state.pendingOps.length===0) return;
   state.syncing = true; updateSyncPill();
@@ -950,11 +1138,11 @@ async function trySync(){
   if(state.pendingOps.length===0) await pullAll();
   renderDash({auto:true});
 }
-
+ 
 // ============================================================
 // DATA MUTATIONS (write-through: local first, then queue+sync)
 // ============================================================
-
+ 
 // VEHICLES
 function addVehicle(v){
   v.id = v.id || uuid();
@@ -974,7 +1162,7 @@ function deleteVehicle(id){
   persist();
   queueOp({table:'vehicles', action:'delete', match:{id}});
 }
-
+ 
 // MANAGERS
 function updateManager(id, patch){
   const i = state.managers.findIndex(m=>m.id===id);
@@ -983,7 +1171,7 @@ function updateManager(id, patch){
   persist();
   queueOp({table:'managers', action:'upsert', data:state.managers[i]});
 }
-
+ 
 // CUSTOM FIELDS
 function addCustomField(f){
   f.id = f.id || uuid();
@@ -1004,7 +1192,7 @@ function deleteCustomField(id){
   persist();
   queueOp({table:'custom_fields', action:'delete', match:{id}});
 }
-
+ 
 // ENTRIES
 function addEntry(e){
   e.id = e.id || uuid();
@@ -1037,14 +1225,14 @@ function updateEntry(id, patch, editor){
   persist();
   queueOp({table:'entries', action:'upsert', data:next});
 }
-
+ 
 // SETTINGS
 function updateSetting(key, value){
   state.settings[key] = String(value);
   persist();
   queueOp({table:'settings', action:'upsert', data:{key, value:String(value)}});
 }
-
+ 
 // ============================================================
 // DASHBOARD RENDERING
 // ============================================================
@@ -1056,7 +1244,7 @@ function isPageInputFocused(){
   const pages = $('#pages');
   return !!(pages && pages.contains(ae));
 }
-
+ 
 function renderDash(opts){
   opts = opts || {};
   if(!state.user) return;
@@ -1066,8 +1254,8 @@ function renderDash(opts){
     return;
   }
   $('#who-name').textContent = state.user.name;
-  $('#who-role').textContent = state.user.role === 'owner' ? 'Owner · Full access' : 'Diesel Manager';
-
+  $('#who-role').textContent = state.user.role === 'owner' ? '🔒 Admin · Full access' : 'Diesel Manager';
+ 
   const tabs = state.user.role === 'owner' ? [
     {key:'overview',   label:'Overview'},
     {key:'entries',    label:'All Entries'},
@@ -1082,20 +1270,20 @@ function renderDash(opts){
     {key:'new-entry',  label:'New Entry'},
     {key:'my-entries', label:'My Entries'},
   ];
-
+ 
   $('#tabbar').innerHTML = tabs.map(t =>
     `<button class="tab ${state.activeTab===t.key?'active':''}" data-tab="${t.key}">${t.label}</button>`
   ).join('');
-
+ 
   $$('#tabbar .tab').forEach(b => b.addEventListener('click', ()=>{
     state.activeTab = b.dataset.tab; renderDash();
   }));
-
+ 
   const pages = $('#pages');
   pages.innerHTML = '';
   const page = document.createElement('div'); page.className='page active';
   pages.appendChild(page);
-
+ 
   if(state.user.role === 'owner'){
     if(state.activeTab==='overview') renderOverview(page);
     else if(state.activeTab==='entries') renderAllEntries(page);
@@ -1110,10 +1298,10 @@ function renderDash(opts){
     if(state.activeTab==='new-entry') renderNewEntry(page);
     else if(state.activeTab==='my-entries') renderMyEntries(page);
   }
-
+ 
   updateSyncPill();
 }
-
+ 
 // ---------- OWNER: OVERVIEW ----------
 function renderOverview(page){
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1125,14 +1313,14 @@ function renderOverview(page){
   const totalLiters = state.entries.reduce((s,e)=>s+(+e.quantity||0),0);
   const todayLiters = todays.reduce((s,e)=>s+(+e.quantity||0),0);
   const activeMgrs = state.managers.filter(m=>m.active).length;
-
+ 
   page.innerHTML = `
     <div class="grid grid-3">
       <div class="kpi"><div class="lbl">Today's entries</div><div class="val">${todays.length}</div><div class="sub">${todayLiters.toFixed(1)} L</div></div>
       <div class="kpi"><div class="lbl">Total entries</div><div class="val">${state.entries.length}</div><div class="sub">${totalLiters.toFixed(0)} L all time</div></div>
       <div class="kpi"><div class="lbl">Active managers</div><div class="val">${activeMgrs} / 10</div><div class="sub">${state.vehicles.filter(v=>v.active!==false).length} vehicles</div></div>
     </div>
-
+ 
     <div class="section" style="margin-top:14px">
       <div class="section-h"><h3>Bowser Stock</h3><span class="sub">Live · auto-deducts on each issue</span></div>
       <div class="grid grid-2">
@@ -1140,14 +1328,14 @@ function renderOverview(page){
         ${renderBowserCard('t2', true)}
       </div>
     </div>
-
+ 
     <div class="section" style="margin-top:14px">
       <div class="section-h"><h3>Latest 10 entries</h3><span class="sub">Live across all managers</span></div>
       ${renderEntriesTable(state.entries.slice(0,10), {showManager:true})}
     </div>
   `;
 }
-
+ 
 function renderBowserCard(tank, withRefill){
   const stock = getBowserStock(tank);
   const cap = getBowserCapacity(tank);
@@ -1167,7 +1355,7 @@ function renderBowserCard(tank, withRefill){
     </div>
   `;
 }
-
+ 
 window.refillBowserModal = function(tank){
   const stock = getBowserStock(tank);
   const cap = getBowserCapacity(tank);
@@ -1199,7 +1387,7 @@ window.confirmRefill = function(tank){
   closeModal(); renderDash();
   toast('Bowser '+tank.toUpperCase()+' refilled — now '+newStock.toFixed(1)+' L','ok');
 };
-
+ 
 // Inline stock banner shown above source pills for managers
 function renderBowserBanner(){
   function tier(stock, cap){
@@ -1217,7 +1405,7 @@ function renderBowserBanner(){
     </div>
   `;
 }
-
+ 
 // ---------- AVG CALCULATION ----------
 // mode='trip'     : (curr_hmr - immediate prev_hmr) / curr_qty   (km/L or L/hr)
 // mode='full2full': (curr_hmr - last_FULL_hmr) / sum(qty of all fills since last FULL incl. this)
@@ -1229,7 +1417,7 @@ function calcAvg(entry, mode){
   const isMachine = veh.type === 'machine';
   const t = new Date(entry.fill_time || entry.created_at).getTime();
   const unit = isMachine ? 'L/hr' : 'km/L';
-
+ 
   if(mode === 'trip'){
     const prev = state.entries
       .filter(e => e.vehicle_id === entry.vehicle_id && e.id !== entry.id)
@@ -1242,7 +1430,7 @@ function calcAvg(entry, mode){
     const value = isMachine ? qty/diff : diff/qty;
     return { value, formatted: value.toFixed(2)+' '+unit, meaningful: entry.fill_type==='full', mode };
   }
-
+ 
   // full2full
   if(entry.fill_type !== 'full') return null;
   const sameVeh = state.entries.filter(e => e.vehicle_id === entry.vehicle_id);
@@ -1262,14 +1450,14 @@ function calcAvg(entry, mode){
   const value = isMachine ? totalQty/diff : diff/totalQty;
   return { value, formatted: value.toFixed(2)+' '+unit, meaningful: true, mode, span: between.length };
 }
-
+ 
 // Persist + apply the avg-mode toggle
 window.setAvgMode = function(m){
   state.avgMode = m;
   try{ localStorage.setItem('tasr_avg_mode', m); }catch(e){}
   renderDash();
 };
-
+ 
 // Reusable toggle UI for switching avg calculation mode
 function avgModeToggleHtml(){
   return `
@@ -1287,15 +1475,18 @@ function avgModeToggleHtml(){
     </div>
   `;
 }
-
+ 
 // ---------- ENTRIES TABLE HELPER ----------
 function renderEntriesTable(entries, opts={}){
   if(!entries.length) return `<div class="empty"><div class="em">⛽</div>No entries yet</div>`;
   const showMgr = opts.showManager !== false;
   const canEdit = opts.canEdit;
+  const isOwner = state.user && state.user.role === 'owner';
   const rows = entries.map(e => {
     const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
     const vehDisplay = veh ? (veh.reg_no || veh.name) : (e.vehicle_name || '—');
+    const isMachine = veh && veh.type === 'machine';
+    const unit = isMachine ? 'L/hr' : 'km/L';
     const src = e.source==='other' ? (e.source_custom||'Other')
               : e.source==='bowser_t1' ? 'Bowser T1'
               : e.source==='bowser_t2' ? 'Bowser T2' : (e.source||'—');
@@ -1311,6 +1502,18 @@ function renderEntriesTable(entries, opts={}){
     const avgCell = avg
       ? `<b style="color:${avg.meaningful?'var(--success)':'var(--text-muted)'}">${avg.formatted}</b>${avg.meaningful?'':' <span style="font-size:10px;color:var(--text-soft)">~</span>'}`
       : '—';
+    // Consumption column (owner-entered verification value)
+    let consCell;
+    if(e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)){
+      const cv = (+e.consumption).toFixed(2);
+      consCell = isOwner
+        ? `<b style="color:var(--accent-dark)">${cv}</b> <span style="font-size:10px;color:var(--text-soft)">${unit}</span> <button class="btn xs ghost" style="font-size:10px;padding:1px 5px;margin-left:2px" onclick="setConsumptionModal('${e.id}')" title="Edit consumption">✎</button>`
+        : `<b style="color:var(--accent-dark)">${cv}</b> <span style="font-size:10px;color:var(--text-soft)">${unit}</span>`;
+    } else {
+      consCell = isOwner
+        ? `<button class="btn xs ghost" style="font-size:11px;padding:2px 8px" onclick="setConsumptionModal('${e.id}')">+ Add</button>`
+        : '<span style="color:var(--text-soft)">—</span>';
+    }
     return `<tr>
       <td>${fmtDT(e.fill_time||e.created_at)}</td>
       ${showMgr?`<td>${escapeHtml(e.manager_name||'—')}</td>`:''}
@@ -1320,6 +1523,7 @@ function renderEntriesTable(entries, opts={}){
       <td>${fillBadge}</td>
       <td>${e.stock!=null && e.stock!=='' ? (+e.stock).toFixed(1) : '—'}</td>
       <td>${avgCell}</td>
+      <td>${consCell}</td>
       <td>${escapeHtml(src)}</td>
       ${cfCells}
       <td>${editBadge}</td>
@@ -1328,12 +1532,12 @@ function renderEntriesTable(entries, opts={}){
   }).join('');
   return `<div class="table-wrap"><table>
     <thead><tr>
-      <th>Time</th>${showMgr?'<th>Manager</th>':''}<th>Vehicle</th><th>HMR</th><th>Qty</th><th>Fill</th><th>Stock</th><th>Avg ${state.avgMode==='full2full'?'(F2F)':'(Trip)'}</th><th>Source</th>${state.customFields.map(f=>`<th>${escapeHtml(f.field_label)}</th>`).join('')}<th></th>${canEdit?'<th></th>':''}
+      <th>Time</th>${showMgr?'<th>Manager</th>':''}<th>Vehicle</th><th>HMR</th><th>Qty</th><th>Fill</th><th>Stock</th><th>Avg ${state.avgMode==='full2full'?'(F2F)':'(Trip)'}</th><th>Consumption</th><th>Source</th>${state.customFields.map(f=>`<th>${escapeHtml(f.field_label)}</th>`).join('')}<th></th>${canEdit?'<th></th>':''}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
-
+ 
 // ---------- OWNER: ALL ENTRIES ----------
 function renderAllEntries(page){
   page.innerHTML = `
@@ -1372,7 +1576,7 @@ function renderAllEntries(page){
       <div id="entries-table">${renderEntriesTable(state.entries, {showManager:true})}</div>
     </div>
   `;
-
+ 
   window._refilterAllEntries = function(){
     const q = $('#filter-search').value.trim().toLowerCase();
     const mid = $('#filter-mgr').value;
@@ -1395,7 +1599,7 @@ function renderAllEntries(page){
     $('#filter-count').textContent = list.length + ' entries · ' + total.toFixed(1) + ' L total';
     $('#entries-table').innerHTML = renderEntriesTable(list, {showManager:true});
   };
-
+ 
   ['filter-search','filter-mgr','filter-from','filter-to'].forEach(id=>{
     const el = $('#'+id); if(!el) return;
     el.addEventListener(id==='filter-search'?'input':'change', window._refilterAllEntries);
@@ -1413,7 +1617,7 @@ window.setDateFilterPreset = function(p){
   else if(p==='clear'){ fromEl.value=''; toEl.value=''; }
   if(window._refilterAllEntries) window._refilterAllEntries();
 };
-
+ 
 // ---------- OWNER: VEHICLE ANALYSIS ----------
 function renderVehicleAnalysis(page){
   const activeVehicles = state.vehicles.filter(v => v.active !== false);
@@ -1426,7 +1630,7 @@ function renderVehicleAnalysis(page){
   }
   const veh = state.vehicles.find(v => v.id === state.analysisVehicleId);
   const stats = computeVehicleStats(veh.id);
-
+ 
   page.innerHTML = `
     <div class="section">
       <div class="section-h"><h3>Vehicle Analysis</h3><span class="sub">Per-vehicle mileage trend & alerts</span></div>
@@ -1444,20 +1648,20 @@ function renderVehicleAnalysis(page){
     ${renderMileageChart(veh, stats)}
     ${renderVehicleEntryLog(veh, stats)}
   `;
-
+ 
   $('#va-vehicle').addEventListener('change', ev=>{
     state.analysisVehicleId = ev.target.value;
     renderDash();
   });
 }
-
+ 
 function computeVehicleStats(vehicleId){
   const veh = state.vehicles.find(v => v.id === vehicleId);
   const isMachine = !!(veh && veh.type === 'machine');
   const entries = state.entries
     .filter(e => e.vehicle_id === vehicleId)
     .sort((a,b) => new Date(a.fill_time||a.created_at) - new Date(b.fill_time||b.created_at));
-
+ 
   const f2fPoints = [];
   for(const e of entries){
     const a = calcAvg(e, 'full2full');
@@ -1470,18 +1674,18 @@ function computeVehicleStats(vehicleId){
       });
     }
   }
-
+ 
   const totalLiters = entries.reduce((s,e) => s + (+e.quantity||0), 0);
   const firstHmr = entries.length ? +entries[0].hmr||0 : 0;
   const lastHmr  = entries.length ? +entries[entries.length-1].hmr||0 : 0;
   const hmrDiff  = Math.max(0, lastHmr - firstHmr);
-
+ 
   const values = f2fPoints.map(p => p.value);
   const avg   = values.length ? values.reduce((s,v)=>s+v,0)/values.length : null;
   const best  = values.length ? (isMachine ? Math.min(...values) : Math.max(...values)) : null;
   const worst = values.length ? (isMachine ? Math.max(...values) : Math.min(...values)) : null;
   const latest = f2fPoints.length ? f2fPoints[f2fPoints.length-1].value : null;
-
+ 
   let latestDelta = null;
   if(latest != null && avg != null && avg > 0){
     latestDelta = ((latest - avg) / avg) * 100;
@@ -1489,15 +1693,15 @@ function computeVehicleStats(vehicleId){
   // For vehicles: lower km/L = worse; for machines: higher L/hr = worse.
   const isAlert = latestDelta != null &&
     (isMachine ? latestDelta > 15 : latestDelta < -15);
-
+ 
   return { entries, f2fPoints, totalLiters, hmrDiff, avg, best, worst, latest, latestDelta, isAlert, isMachine };
 }
-
+ 
 function renderVehicleStatsCards(veh, stats){
   const unit = stats.isMachine ? 'L/hr' : 'km/L';
   const hmrLabel = stats.isMachine ? 'Hours run' : 'KM covered';
   const noData = stats.f2fPoints.length === 0;
-
+ 
   return `
     <div class="grid grid-3" style="margin-top:14px">
       <div class="kpi"><div class="lbl">Total entries</div><div class="val">${stats.entries.length}</div><div class="sub">${stats.totalLiters.toFixed(0)} L consumed</div></div>
@@ -1526,7 +1730,7 @@ function renderVehicleStatsCards(veh, stats){
       </div>` : ''}
   `;
 }
-
+ 
 function renderMileageChart(veh, stats){
   const unit = stats.isMachine ? 'L/hr' : 'km/L';
   const pts = stats.f2fPoints;
@@ -1546,10 +1750,10 @@ function renderMileageChart(veh, stats){
   const yMax = maxV + span * 0.15;
   const xAt = i => PAD_L + (i / Math.max(1, pts.length - 1)) * innerW;
   const yAt = v => PAD_T + (1 - (v - yMin) / Math.max(0.0001, yMax - yMin)) * innerH;
-
+ 
   const polylinePts = pts.map((p, i) => xAt(i) + ',' + yAt(p.value)).join(' ');
   const avgY = yAt(stats.avg);
-
+ 
   const circles = pts.map((p, i) => {
     const x = xAt(i), y = yAt(p.value);
     const badThreshold = stats.isMachine ? stats.avg * 1.15 : stats.avg * 0.85;
@@ -1558,19 +1762,19 @@ function renderMileageChart(veh, stats){
     return `<g><circle cx="${x}" cy="${y}" r="5" fill="${color}" stroke="#fff" stroke-width="2"></circle>
       <text x="${x}" y="${y-10}" text-anchor="middle" font-size="10" font-weight="600" fill="${isBad?'#991b1b':'#0f172a'}">${p.value.toFixed(1)}</text></g>`;
   }).join('');
-
+ 
   const yTickValues = [yMin, (yMin+yMax)/2, yMax];
   const yTicks = yTickValues.map(v => `
     <text x="${PAD_L-6}" y="${yAt(v)+3}" text-anchor="end" font-size="10" fill="#64748b">${v.toFixed(1)}</text>
     <line x1="${PAD_L}" x2="${W-PAD_R}" y1="${yAt(v)}" y2="${yAt(v)}" stroke="#e2e8f0" stroke-width="1"></line>
   `).join('');
-
+ 
   const idxs = pts.length <= 4 ? pts.map((_,i)=>i) : [0, Math.floor(pts.length/3), Math.floor(2*pts.length/3), pts.length-1];
   const xLabels = idxs.map(i => {
     const d = new Date(pts[i].date);
     return `<text x="${xAt(i)}" y="${H - PAD_B + 18}" text-anchor="middle" font-size="10" fill="#64748b">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}</text>`;
   }).join('');
-
+ 
   return `
     <div class="section" style="margin-top:14px">
       <div class="section-h">
@@ -1596,7 +1800,7 @@ function renderMileageChart(veh, stats){
     </div>
   `;
 }
-
+ 
 function renderVehicleEntryLog(veh, stats){
   const recent = stats.entries.slice().reverse().slice(0, 20);
   return `
@@ -1609,7 +1813,7 @@ function renderVehicleEntryLog(veh, stats){
     </div>
   `;
 }
-
+ 
 // ---------- OWNER: VEHICLES ----------
 function renderVehicles(page){
   page.innerHTML = `
@@ -1638,7 +1842,7 @@ function renderVehicles(page){
     </div>
   `;
 }
-
+ 
 window.addVehicleModal = function(){
   openModal('Add Vehicle / Machine', `
     <div class="form-row"><label>Registration / Asset Number *</label><input id="vh-reg" placeholder="e.g. MP21AB1234 or JCB-3CX-12" autocomplete="off"></div>
@@ -1693,7 +1897,7 @@ window.confirmDeleteVehicle = function(id){
     deleteVehicle(id); renderDash(); toast('Deleted','ok');
   }
 };
-
+ 
 // ---------- OWNER: MANAGERS ----------
 function renderManagers(page){
   page.innerHTML = `
@@ -1719,7 +1923,7 @@ function renderManagers(page){
     </div>
   `;
 }
-
+ 
 window.editManagerModal = function(id){
   const m = state.managers.find(x=>x.id===id); if(!m) return;
   openModal(`Edit Manager #${id}`, `
@@ -1741,7 +1945,7 @@ window.saveManager = function(id){
   });
   closeModal(); renderDash(); toast('Manager updated','ok');
 };
-
+ 
 // ---------- OWNER: CUSTOM FIELDS ----------
 function renderCustomFields(page){
   page.innerHTML = `
@@ -1821,7 +2025,7 @@ window.saveEditCF = function(id){
 window.confirmDeleteCF = function(id){
   if(confirm('Delete this custom field?')){ deleteCustomField(id); renderDash(); toast('Deleted','ok'); }
 };
-
+ 
 // ---------- OWNER: EXPORT ----------
 function renderExport(page){
   const today = new Date().toISOString().slice(0,10);
@@ -1857,7 +2061,7 @@ window.doExport = function(){
     return true;
   });
   if(!list.length){ toast('No entries in range','err'); return; }
-
+ 
   const rows = list.map(e=>{
     const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
     const row = {
@@ -1873,6 +2077,7 @@ window.doExport = function(){
       'Bowser Stock Reading': e.stock != null && e.stock !== '' ? +e.stock : '',
       'Trip Avg': (function(){ const a = calcAvg(e,'trip'); return a ? a.formatted : ''; })(),
       'Full-to-Full Avg': (function(){ const a = calcAvg(e,'full2full'); return a ? a.formatted : ''; })(),
+      'Consumption (Admin)': (e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)) ? (+e.consumption) : '',
       'Source':e.source==='other'?(e.source_custom||'Other'):(e.source==='bowser_t1'?'Bowser T1':(e.source==='bowser_t2'?'Bowser T2':e.source||'')),
       'Edit Count':e.edit_count||0,
       'Last Edited':e.edited_at?fmtDT(e.edited_at):'',
@@ -1882,7 +2087,7 @@ window.doExport = function(){
     });
     return row;
   });
-
+ 
   // Edit history sheet
   const editRows = [];
   list.forEach(e=>{
@@ -1897,14 +2102,14 @@ window.doExport = function(){
       });
     });
   });
-
+ 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Entries');
   if(editRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(editRows), 'Edit History');
   XLSX.writeFile(wb, `TASR_Fuel_${from}_to_${to}.xlsx`);
   toast('Excel downloaded','ok');
 };
-
+ 
 // ---------- OWNER: AUDIT LOG ----------
 function renderAudit(page){
   const edited = state.entries.filter(e=>(e.edit_count||0)>0);
@@ -1934,7 +2139,7 @@ function renderAudit(page){
     </div>
   `;
 }
-
+ 
 // ---------- OWNER: SETTINGS ----------
 function renderSettings(page){
   page.innerHTML = `
@@ -1948,7 +2153,7 @@ function renderSettings(page){
         </div>
       </label>
     </div>
-
+ 
     <div class="section">
       <div class="section-h"><h3>Secret Unlock Code</h3></div>
       <div class="form-row"><label>4–8 digit code typed on calculator</label>
@@ -1956,7 +2161,7 @@ function renderSettings(page){
       </div>
       <button class="btn small" onclick="saveSecret()">Update Secret Code</button>
     </div>
-
+ 
     <div class="section">
       <div class="section-h"><h3>Owner PIN</h3></div>
       <div class="form-row"><label>New owner PIN (4–8 digits)</label>
@@ -1967,7 +2172,7 @@ function renderSettings(page){
       </div>
       <button class="btn small" onclick="saveOwnerPwd()">Update PIN</button>
     </div>
-
+ 
     <div class="section">
       <div class="section-h"><h3>Sync & Storage</h3></div>
       ${sb
@@ -1988,7 +2193,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v2.0</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v2.1</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -2020,11 +2225,11 @@ window.wipeLocalCache = function(){
   toast('Local cache wiped — reloading…','ok');
   setTimeout(()=>location.reload(), 600);
 };
-
+ 
 // ============================================================
 // MANAGER VIEWS
 // ============================================================
-
+ 
 // ---------- MANAGER: NEW ENTRY ----------
 function renderNewEntry(page){
   const activeVehicles = state.vehicles.filter(v=>v.active!==false);
@@ -2032,7 +2237,7 @@ function renderNewEntry(page){
   page.innerHTML = `
     <div class="section">
       <div class="section-h"><h3>New Fuel Entry</h3><span class="sub">${state.user.name}</span></div>
-
+ 
       <div class="form-row sd-wrap">
         <label>Vehicle / Machine *</label>
         <input type="text" id="ne-vehicle" placeholder="${activeVehicles.length===0 ? 'No vehicles yet — ask owner to add' : 'Search by reg number, type, or name…'}" autocomplete="off" ${activeVehicles.length===0?'disabled':''}>
@@ -2040,12 +2245,12 @@ function renderNewEntry(page){
         <div id="ne-vehicle-results" class="sd-results"></div>
         <div class="hint">${activeVehicles.length} vehicle${activeVehicles.length===1?'':'s'} available</div>
       </div>
-
+ 
       <div class="grid grid-2">
         <div class="form-row"><label>HMR / KM Reading *</label><input type="number" step="0.1" id="ne-hmr" placeholder="e.g. 4521.5"></div>
         <div class="form-row"><label>Quantity (Litres) *</label><input type="number" step="0.1" id="ne-qty" placeholder="e.g. 45.0"></div>
       </div>
-
+ 
       <div class="form-row">
         <label>Fill Type *</label>
         <div class="source-pills" id="ne-fill-pills">
@@ -2054,17 +2259,17 @@ function renderNewEntry(page){
         </div>
         <div class="hint">"Full" entries are used for accurate mileage calculation</div>
       </div>
-
+ 
       <div class="form-row">
         <label>Bowser Stock Reading <span style="color:var(--text-soft);text-transform:none;font-weight:400;letter-spacing:0">(manual)</span></label>
         <input type="number" step="0.1" id="ne-stock" placeholder="Physical meter reading on the bowser" inputmode="decimal">
       </div>
-
+ 
       <div class="form-row">
         <label>Time of fill *</label>
         <input type="datetime-local" id="ne-time" value="${nowLocal}">
       </div>
-
+ 
       <div class="form-row">
         <label>Source * <span style="color:var(--text-soft);text-transform:none;font-weight:400;letter-spacing:0">— live stock</span></label>
         ${renderBowserBanner()}
@@ -2075,21 +2280,21 @@ function renderNewEntry(page){
         </div>
         <input type="text" id="ne-src-custom" placeholder="Specify source" style="margin-top:8px;display:none;width:100%;padding:10px 12px;border:1px solid var(--border-dark);border-radius:var(--radius-sm)">
       </div>
-
+ 
       ${state.customFields.map(f=>`
         <div class="form-row">
           <label>${escapeHtml(f.field_label)} ${f.required?'*':''}</label>
           <input type="${f.field_type==='number'?'number':f.field_type==='date'?'date':'text'}" id="ne-cf-${f.id}" data-key="${f.field_key}" ${f.required?'data-req="1"':''}>
         </div>
       `).join('')}
-
+ 
       <button class="btn" style="width:100%;padding:12px" onclick="saveNewEntry()">⛽ Save Entry</button>
     </div>
   `;
-
+ 
   wireVehicleSearch('ne-vehicle', 'ne-vehicle-id', 'ne-vehicle-results',
     () => state.vehicles.filter(v=>v.active!==false), null);
-
+ 
   // source pill toggle
   page.querySelectorAll('.source-pills .source-pill[data-src]').forEach(p=>p.addEventListener('click', ()=>{
     page.querySelectorAll('.source-pills .source-pill[data-src]').forEach(x=>x.classList.remove('active'));
@@ -2102,7 +2307,7 @@ function renderNewEntry(page){
     p.classList.add('active');
   }));
 }
-
+ 
 // Reusable searchable vehicle picker — `vehiclesOrGetter` may be an array OR a
 // function returning a fresh array (so the dropdown stays current even when the
 // form itself is not re-rendered).
@@ -2112,7 +2317,7 @@ function wireVehicleSearch(inputId, hiddenId, resultsId, vehiclesOrGetter, prese
   const res = document.getElementById(resultsId);
   if(!inp || !hid || !res) return;
   const getList = () => typeof vehiclesOrGetter === 'function' ? vehiclesOrGetter() : vehiclesOrGetter;
-
+ 
   function render(q){
     const vehicles = getList();
     const query = (q||'').toLowerCase().trim();
@@ -2139,19 +2344,19 @@ function wireVehicleSearch(inputId, hiddenId, resultsId, vehiclesOrGetter, prese
     }
     res.classList.add('show');
   }
-
+ 
   function selectVehicle(v){
     inp.value = (v.reg_no || v.name) + (v.name && v.name!==v.reg_no ? ' — '+v.name : '');
     hid.value = v.id;
     inp.classList.add('sd-selected');
     res.classList.remove('show');
   }
-
+ 
   if(preselectId){
     const v = getList().find(x=>x.id===preselectId);
     if(v) selectVehicle(v);
   }
-
+ 
   inp.addEventListener('focus', ()=>render(''));
   inp.addEventListener('input', ()=>{
     hid.value = '';
@@ -2177,7 +2382,7 @@ function wireVehicleSearch(inputId, hiddenId, resultsId, vehiclesOrGetter, prese
     if(v) selectVehicle(v);
   });
 }
-
+ 
 window.saveNewEntry = function(){
   const vehId = $('#ne-vehicle-id').value;
   const veh = state.vehicles.find(v=>v.id===vehId);
@@ -2192,7 +2397,7 @@ window.saveNewEntry = function(){
   const src = srcEl ? srcEl.dataset.src : 'bowser_t1';
   const srcCustom = src==='other' ? $('#ne-src-custom').value.trim() : '';
   if(src==='other' && !srcCustom){ toast('Specify "Other" source','err'); return; }
-
+ 
   // Bowser stock validation
   if(src === 'bowser_t1' || src === 'bowser_t2'){
     const tank = src.replace('bowser_','');
@@ -2202,7 +2407,7 @@ window.saveNewEntry = function(){
       return;
     }
   }
-
+ 
   const custom_data = {};
   for(const f of state.customFields){
     const el = $('#ne-cf-'+f.id);
@@ -2210,7 +2415,7 @@ window.saveNewEntry = function(){
     if(f.required && !v){ toast(f.field_label+' required','err'); return; }
     if(v) custom_data[f.field_key] = v;
   }
-
+ 
   addEntry({
     manager_id: state.user.id, manager_name: state.user.name,
     vehicle_id: veh.id, vehicle_name: veh.reg_no || veh.name,
@@ -2223,7 +2428,7 @@ window.saveNewEntry = function(){
   state.activeTab = 'my-entries';
   renderDash();
 };
-
+ 
 // ---------- MANAGER: MY ENTRIES ----------
 function renderMyEntries(page){
   const mine = state.entries.filter(e => e.manager_id===state.user.id);
@@ -2231,14 +2436,14 @@ function renderMyEntries(page){
   const todayCount = mine.filter(e=>new Date(e.fill_time||e.created_at).getTime() >= today.getTime()).length;
   const todayLiters = mine.filter(e=>new Date(e.fill_time||e.created_at).getTime() >= today.getTime()).reduce((s,e)=>s+(+e.quantity||0),0);
   const totalLiters = mine.reduce((s,e)=>s+(+e.quantity||0),0);
-
+ 
   page.innerHTML = `
     <div class="grid grid-3">
       <div class="kpi"><div class="lbl">Today</div><div class="val">${todayCount}</div><div class="sub">${todayLiters.toFixed(1)} L</div></div>
       <div class="kpi"><div class="lbl">Total entries</div><div class="val">${mine.length}</div><div class="sub">All time</div></div>
       <div class="kpi"><div class="lbl">Total volume</div><div class="val">${totalLiters.toFixed(0)} L</div><div class="sub">Issued by you</div></div>
     </div>
-
+ 
     <div class="section" style="margin-top:14px">
       <div class="section-h"><h3>Bowser Stock</h3><span class="sub">Auto-updates after every issue</span></div>
       <div class="grid grid-2">
@@ -2246,7 +2451,7 @@ function renderMyEntries(page){
         ${renderBowserCard('t2', false)}
       </div>
     </div>
-
+ 
     <div class="section" style="margin-top:14px">
       <div class="section-h"><h3>My Entries</h3><span class="sub">Tap edit to revise</span></div>
       ${avgModeToggleHtml()}
@@ -2254,14 +2459,14 @@ function renderMyEntries(page){
     </div>
   `;
 }
-
+ 
 window.editEntryModal = function(id){
   const e = state.entries.find(x=>x.id===id); if(!e) return;
   const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
   const t = new Date(e.fill_time||e.created_at);
   const tLocal = new Date(t.getTime() - t.getTimezoneOffset()*60000).toISOString().slice(0,16);
   const activeVehicles = state.vehicles.filter(v=>v.active!==false || v.id===e.vehicle_id);
-
+ 
   openModal('Edit Entry', `
     <div class="form-row sd-wrap"><label>Vehicle</label>
       <input type="text" id="ee-vehicle" placeholder="Search by reg number, type, or name…" autocomplete="off">
@@ -2284,6 +2489,10 @@ window.editEntryModal = function(id){
       <input type="number" step="0.1" id="ee-stock" value="${e.stock||''}" inputmode="decimal">
     </div>
     <div class="form-row"><label>Time</label><input type="datetime-local" id="ee-time" value="${tLocal}"></div>
+    <div class="form-row">
+      <label>Consumption <span style="color:var(--text-soft);font-weight:400">(${veh && veh.type==='machine'?'L/hr':'km/L'} — Admin-set, visible to all)</span></label>
+      <input type="number" step="0.01" id="ee-consumption" value="${e.consumption!=null?(+e.consumption):''}" placeholder="Leave blank if not measured" inputmode="decimal">
+    </div>
     <div class="form-row"><label>Source</label>
       <select id="ee-src">
         <option value="bowser_t1" ${e.source==='bowser_t1'?'selected':''}>Bowser T1</option>
@@ -2300,22 +2509,22 @@ window.editEntryModal = function(id){
     `).join('')}
     <button class="btn" style="width:100%" onclick="saveEditEntry('${id}')">Save Changes</button>
   `);
-
+ 
   // wire searchable vehicle picker with pre-selection
   wireVehicleSearch('ee-vehicle', 'ee-vehicle-id', 'ee-vehicle-results', activeVehicles, e.vehicle_id);
-
+ 
   // wire source toggle
   $('#ee-src').addEventListener('change', ev=>{
     $('#ee-src-custom').style.display = ev.target.value==='other' ? '' : 'none';
   });
-
+ 
   // wire fill-type pills
   document.querySelectorAll('#ee-fill-pills .source-pill').forEach(p=>p.addEventListener('click', ()=>{
     document.querySelectorAll('#ee-fill-pills .source-pill').forEach(x=>x.classList.remove('active'));
     p.classList.add('active');
   }));
 };
-
+ 
 window.saveEditEntry = function(id){
   const e = state.entries.find(x=>x.id===id); if(!e) return;
   const vehId = $('#ee-vehicle-id').value;
@@ -2324,7 +2533,7 @@ window.saveEditEntry = function(id){
   const src = $('#ee-src').value;
   const srcCustom = src==='other' ? $('#ee-src-custom').value.trim() : '';
   const newQty = parseFloat($('#ee-qty').value) || 0;
-
+ 
   // Bowser stock validation — account for this entry's existing contribution
   if(src === 'bowser_t1' || src === 'bowser_t2'){
     const tank = src.replace('bowser_','');
@@ -2336,14 +2545,15 @@ window.saveEditEntry = function(id){
       return;
     }
   }
-
+ 
   const custom_data = {...(e.custom_data||{})};
   state.customFields.forEach(f=>{
     const el = $('#ee-cf-'+f.id);
     if(el){ const v = el.value.trim(); if(v) custom_data[f.field_key]=v; else delete custom_data[f.field_key]; }
   });
-
-  updateEntry(id, {
+ 
+  // Consumption (owner only — field present in edit modal for owner)
+  const patch = {
     vehicle_id:veh.id, vehicle_name: veh.reg_no || veh.name,
     hmr:parseFloat($('#ee-hmr').value)||null,
     quantity:parseFloat($('#ee-qty').value)||null,
@@ -2352,10 +2562,63 @@ window.saveEditEntry = function(id){
     fill_type: (document.querySelector('#ee-fill-pills .source-pill.active')||{}).dataset?.fill || 'full',
     stock: parseFloat($('#ee-stock').value) || null,
     custom_data,
-  });
+  };
+  const consEl = $('#ee-consumption');
+  if(consEl){
+    const cv = consEl.value.trim();
+    patch.consumption = cv === '' ? null : (parseFloat(cv) || null);
+  }
+  updateEntry(id, patch);
   closeModal(); renderDash(); toast('Entry updated','ok');
 };
-
+ 
+// ----- Consumption quick-add modal (owner only) -----
+window.setConsumptionModal = function(id){
+  if(!state.user || state.user.role !== 'owner'){ toast('Only Admin can set consumption','err'); return; }
+  const e = state.entries.find(x=>x.id===id); if(!e) return;
+  const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
+  const isMachine = veh && veh.type === 'machine';
+  const unit = isMachine ? 'L/hr' : 'km/L';
+  const vehDisplay = veh ? (veh.reg_no || veh.name) : (e.vehicle_name || '—');
+  const currentVal = (e.consumption != null && e.consumption !== '') ? (+e.consumption).toString() : '';
+ 
+  openModal('Set Consumption', `
+    <div style="background:var(--surface);padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px">
+      <div><b>${escapeHtml(vehDisplay)}</b> · ${fmtDT(e.fill_time||e.created_at)}</div>
+      <div style="color:var(--text-muted);margin-top:2px">${(+e.quantity||0).toFixed(1)} L issued · HMR ${e.hmr||'—'}</div>
+    </div>
+    <div class="form-row">
+      <label>Consumption value <span style="color:var(--text-soft);font-weight:400">(${unit})</span></label>
+      <input type="number" step="0.01" id="cons-val" value="${escapeHtml(currentVal)}" placeholder="e.g. ${isMachine?'4.5':'8.2'}" inputmode="decimal" autofocus>
+      <div class="hint">Verified consumption reading (visible to all managers). Leave blank and save to clear.</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      ${currentVal ? `<button class="btn ghost" style="flex:1" onclick="saveConsumption('${id}', true)">Clear</button>` : ''}
+      <button class="btn" style="flex:2" onclick="saveConsumption('${id}', false)">Save</button>
+    </div>
+  `);
+  setTimeout(()=>{
+    const el = document.getElementById('cons-val');
+    if(el){ el.focus(); el.select(); el.addEventListener('keydown', ev => { if(ev.key === 'Enter') saveConsumption(id, false); }); }
+  }, 80);
+};
+ 
+window.saveConsumption = function(id, clear){
+  const e = state.entries.find(x=>x.id===id); if(!e) return;
+  let val = null;
+  if(!clear){
+    const raw = ($('#cons-val').value || '').trim();
+    if(raw !== ''){
+      val = parseFloat(raw);
+      if(isNaN(val)){ toast('Enter a valid number','err'); return; }
+    }
+  }
+  updateEntry(id, { consumption: val });
+  closeModal();
+  renderDash();
+  toast(val === null ? 'Consumption cleared' : 'Consumption saved','ok');
+};
+ 
 // ============================================================
 // BOOT
 // ============================================================
@@ -2365,17 +2628,19 @@ migrateIdsToUuid();
 calcRender();
 bootScreen();
 updateSyncPill();
-
+ 
 // Initial pull from server, then periodic sync
 (async ()=>{
   if(sb){
     await pullAll();
     bootScreen();              // re-evaluate calc/login after settings load
+    applyAdminState();         // honour admin kill-switch from server
     if(state.user) renderDash({auto:true});
   }
 })();
 setInterval(()=>{ if(state.online) trySync(); }, 15000);
-setInterval(()=>{ if(state.online && state.user) pullAll().then(()=>{ if(state.user) renderDash({auto:true}); }); }, 30000);
+setInterval(()=>{ if(state.online && state.user) pullAll().then(()=>{ applyAdminState(); if(state.user) renderDash({auto:true}); }); }, 30000);
 </script>
 </body>
 </html>
+ 
