@@ -473,7 +473,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v2.1</span></div>
+    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v2.2</span></div>
     <span id="sync-pill" class="sync-pill sync-online"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -563,6 +563,7 @@ const state = {
     admin_app_enabled: 'true',
     admin_owner_enabled: 'true',
     admin_disable_message: 'Service temporarily unavailable. Please contact your administrator.',
+    admin_pages_disabled: '',
   },
   pendingOps: [],          // offline queue
   online: navigator.onLine,
@@ -868,6 +869,19 @@ window.openAdminPanel = function(){
   const appEnabled   = state.settings.admin_app_enabled !== 'false';
   const ownerEnabled = state.settings.admin_owner_enabled !== 'false';
   const message      = state.settings.admin_disable_message || 'Service temporarily unavailable.';
+  const disabledPages = (state.settings.admin_pages_disabled || '').split(',').map(s=>s.trim()).filter(Boolean);
+ 
+  const allPages = [
+    {key:'overview',  label:'Overview'},
+    {key:'entries',   label:'All Entries'},
+    {key:'analysis',  label:'Analysis'},
+    {key:'vehicles',  label:'Vehicles'},
+    {key:'managers',  label:'Managers'},
+    {key:'custom',    label:'Custom Fields'},
+    {key:'export',    label:'Export'},
+    {key:'audit',     label:'Audit Log'},
+    {key:'settings',  label:'Settings'},
+  ];
  
   openModal('🔒 Administration Panel', `
     <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--surface);border-radius:8px;cursor:pointer;margin-bottom:10px">
@@ -892,7 +906,20 @@ window.openAdminPanel = function(){
       <div class="hint">Shown when app is disabled. e.g. "Payment due", "Technical issue, please wait"</div>
     </div>
  
-    <button class="btn" style="width:100%;margin-top:6px" onclick="saveAdminSettings()">Save Changes</button>
+    <div style="margin-top:18px;padding:12px;background:var(--surface);border-radius:8px">
+      <div style="font-weight:600;margin-bottom:4px">Admin Page Access</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Toggle individual Admin pages. Disabled pages vanish from the tab bar.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px">
+        ${allPages.map(p => `
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:6px 8px;background:#fff;border:1px solid var(--border);border-radius:6px;cursor:pointer">
+            <input type="checkbox" class="ap-page" data-page="${p.key}" ${disabledPages.includes(p.key)?'':'checked'} style="width:auto">
+            ${p.label}
+          </label>
+        `).join('')}
+      </div>
+    </div>
+ 
+    <button class="btn" style="width:100%;margin-top:14px" onclick="saveAdminSettings()">Save Changes</button>
   `);
 };
  
@@ -900,6 +927,11 @@ window.saveAdminSettings = function(){
   updateSetting('admin_app_enabled',   $('#ap-app-enabled').checked ? 'true' : 'false');
   updateSetting('admin_owner_enabled', $('#ap-owner-enabled').checked ? 'true' : 'false');
   updateSetting('admin_disable_message', $('#ap-message').value.trim() || 'Service temporarily unavailable.');
+  // Collect disabled pages — boxes that are UNCHECKED
+  const disabled = Array.from(document.querySelectorAll('.ap-page'))
+    .filter(cb => !cb.checked)
+    .map(cb => cb.dataset.page);
+  updateSetting('admin_pages_disabled', disabled.join(','));
   closeModal(); toast('Administration settings saved','ok');
   applyAdminState();
 };
@@ -1077,7 +1109,7 @@ window.addEventListener('offline',()=>{ state.online = false; updateSyncPill(); 
 async function pullAll(){
   if(!sb) return;
   try{
-    state.syncing = true; updateSyncPill();
+    state.syncing = true; _syncingStart = Date.now(); updateSyncPill();
     const [veh, mgr, cf, ent, st] = await Promise.all([
       sb.from('vehicles').select('*').order('name'),
       sb.from('managers').select('*').order('id'),
@@ -1102,7 +1134,7 @@ async function pullAll(){
     }
     persist();
   }catch(e){ console.warn('pull error', e); }
-  finally{ state.syncing=false; updateSyncPill(); }
+  finally{ state.syncing=false; _syncingStart = 0; updateSyncPill(); }
 }
  
 function queueOp(op){
@@ -1113,31 +1145,47 @@ function queueOp(op){
  
 async function trySync(){
   if(!sb || !state.online || state.syncing || state.pendingOps.length===0) return;
-  state.syncing = true; updateSyncPill();
-  const ops = [...state.pendingOps];
-  for(const op of ops){
-    try{
-      const { table, action, data, match } = op;
-      let res;
-      if(action==='upsert') res = await sb.from(table).upsert(data);
-      else if(action==='insert') res = await sb.from(table).insert(data);
-      else if(action==='update') res = await sb.from(table).update(data).match(match);
-      else if(action==='delete') res = await sb.from(table).delete().match(match);
-      if(res && res.error){
-        console.warn('sync error', op, res.error);
-        toast('Sync error: '+(res.error.message||'check console'), 'err');
-        break;
-      }
-      state.pendingOps = state.pendingOps.filter(p=>p.id!==op.id);
-      persist();
-    }catch(e){ console.warn('sync exception', e); break; }
+  // Wrap whole flow in try/finally so syncing flag CANNOT get stuck on
+  try {
+    state.syncing = true; _syncingStart = Date.now(); updateSyncPill();
+    const ops = [...state.pendingOps];
+    for(const op of ops){
+      try{
+        const { table, action, data, match } = op;
+        let res;
+        if(action==='upsert') res = await sb.from(table).upsert(data);
+        else if(action==='insert') res = await sb.from(table).insert(data);
+        else if(action==='update') res = await sb.from(table).update(data).match(match);
+        else if(action==='delete') res = await sb.from(table).delete().match(match);
+        if(res && res.error){
+          console.warn('sync error', op, res.error);
+          toast('Sync error: '+(res.error.message||'check console'), 'err');
+          break;
+        }
+        state.pendingOps = state.pendingOps.filter(p=>p.id!==op.id);
+        persist();
+      }catch(e){ console.warn('sync exception', e); break; }
+    }
+  } finally {
+    state.syncing = false; _syncingStart = 0;
+    updateSyncPill();
+    // Best-effort fresh pull after a successful flush; never let it leave syncing stuck
+    if(state.pendingOps.length===0 && sb && state.online){
+      try { await pullAll(); } catch(e){ console.warn('post-sync pull failed', e); }
+    }
+    try { renderDash({auto:true}); } catch(e){}
   }
-  state.syncing = false;
-  updateSyncPill();
-  // pull fresh data after push completes
-  if(state.pendingOps.length===0) await pullAll();
-  renderDash({auto:true});
 }
+ 
+// Watchdog: if syncing has been true for >20s, force-reset. Belt-and-suspenders
+// safety net so the pill cannot ever get permanently stuck on "Syncing…".
+let _syncingStart = 0;
+setInterval(()=>{
+  if(state.syncing && _syncingStart && Date.now() - _syncingStart > 20000){
+    console.warn('[TASR] syncing watchdog tripped — forcing reset');
+    state.syncing = false; _syncingStart = 0; updateSyncPill();
+  }
+}, 5000);
  
 // ============================================================
 // DATA MUTATIONS (write-through: local first, then queue+sync)
@@ -1256,7 +1304,8 @@ function renderDash(opts){
   $('#who-name').textContent = state.user.name;
   $('#who-role').textContent = state.user.role === 'owner' ? '🔒 Admin · Full access' : 'Diesel Manager';
  
-  const tabs = state.user.role === 'owner' ? [
+  const disabledPages = (state.settings.admin_pages_disabled || '').split(',').map(s=>s.trim()).filter(Boolean);
+  const allOwnerTabs = [
     {key:'overview',   label:'Overview'},
     {key:'entries',    label:'All Entries'},
     {key:'analysis',   label:'Analysis'},
@@ -1266,10 +1315,18 @@ function renderDash(opts){
     {key:'export',     label:'Export'},
     {key:'audit',      label:'Audit Log'},
     {key:'settings',   label:'Settings'},
-  ] : [
-    {key:'new-entry',  label:'New Entry'},
-    {key:'my-entries', label:'My Entries'},
   ];
+  const tabs = state.user.role === 'owner'
+    ? allOwnerTabs.filter(t => !disabledPages.includes(t.key))
+    : [
+      {key:'new-entry',  label:'New Entry'},
+      {key:'my-entries', label:'My Entries'},
+    ];
+ 
+  // If the user's currently active tab has been disabled by Admin, jump to first available
+  if(state.user.role === 'owner' && !tabs.some(t => t.key === state.activeTab)){
+    state.activeTab = tabs.length ? tabs[0].key : 'overview';
+  }
  
   $('#tabbar').innerHTML = tabs.map(t =>
     `<button class="tab ${state.activeTab===t.key?'active':''}" data-tab="${t.key}">${t.label}</button>`
@@ -1285,7 +1342,10 @@ function renderDash(opts){
   pages.appendChild(page);
  
   if(state.user.role === 'owner'){
-    if(state.activeTab==='overview') renderOverview(page);
+    // Guard: skip rendering for any tab that admin has disabled
+    if(disabledPages.includes(state.activeTab)){
+      page.innerHTML = '<div class="section"><div class="empty"><div class="em">🔒</div>This page has been disabled by administrator.</div></div>';
+    } else if(state.activeTab==='overview') renderOverview(page);
     else if(state.activeTab==='entries') renderAllEntries(page);
     else if(state.activeTab==='analysis') renderVehicleAnalysis(page);
     else if(state.activeTab==='vehicles') renderVehicles(page);
@@ -1451,6 +1511,50 @@ function calcAvg(entry, mode){
   return { value, formatted: value.toFixed(2)+' '+unit, meaningful: true, mode, span: between.length };
 }
  
+// Manual Consumption — auto-derived from "angul naap" (vehicle dipstick) stock readings.
+// Idea: between previous fill and current fill, fuel actually consumed =
+//   (prev.stock + prev.qty) − cur.stock
+// Then convert to km/L or L/hr using the HMR/km gap.
+function calcManualConsumption(entry){
+  const veh = state.vehicles.find(v => v.id === entry.vehicle_id);
+  if(!veh) return null;
+  const isMachine = veh.type === 'machine';
+  const unit = isMachine ? 'L/hr' : 'km/L';
+  const t = new Date(entry.fill_time || entry.created_at).getTime();
+  const prev = state.entries
+    .filter(e => e.vehicle_id === entry.vehicle_id && e.id !== entry.id)
+    .filter(e => new Date(e.fill_time || e.created_at).getTime() < t)
+    .sort((a,b) => new Date(b.fill_time||b.created_at) - new Date(a.fill_time||a.created_at))[0];
+  if(!prev) return null;
+  const prevStock = parseFloat(prev.stock);
+  const prevQty   = parseFloat(prev.quantity);
+  const curStock  = parseFloat(entry.stock);
+  if(isNaN(prevStock) || isNaN(prevQty) || isNaN(curStock)) return null;
+  const consumed = (prevStock + prevQty) - curStock;
+  if(consumed <= 0) return null;
+  const prevHmr = parseFloat(prev.hmr);
+  const curHmr  = parseFloat(entry.hmr);
+  if(isNaN(prevHmr) || isNaN(curHmr)) return null;
+  const delta = curHmr - prevHmr;
+  if(delta <= 0) return null;
+  const value = isMachine ? consumed/delta : delta/consumed;
+  return { value, formatted: value.toFixed(2)+' '+unit, unit, consumed, delta };
+}
+ 
+// Difference between Manual (stock-derived) and GPS (admin-entered) consumption.
+// Returns { delta, pct, severity } or null when either side is missing.
+function calcConsDiff(entry){
+  const manual = calcManualConsumption(entry);
+  const gps = (entry.consumption != null && entry.consumption !== '' && !isNaN(+entry.consumption))
+    ? +entry.consumption : null;
+  if(!manual || gps == null) return null;
+  const delta = manual.value - gps;
+  const pct = gps !== 0 ? (delta / gps) * 100 : 0;
+  const absPct = Math.abs(pct);
+  const severity = absPct < 10 ? 'ok' : (absPct < 20 ? 'warn' : 'bad');
+  return { delta, pct, severity, manualVal: manual.value, gpsVal: gps, unit: manual.unit };
+}
+ 
 // Persist + apply the avg-mode toggle
 window.setAvgMode = function(m){
   state.avgMode = m;
@@ -1502,18 +1606,36 @@ function renderEntriesTable(entries, opts={}){
     const avgCell = avg
       ? `<b style="color:${avg.meaningful?'var(--success)':'var(--text-muted)'}">${avg.formatted}</b>${avg.meaningful?'':' <span style="font-size:10px;color:var(--text-soft)">~</span>'}`
       : '—';
-    // Consumption column (owner-entered verification value)
-    let consCell;
+ 
+    // Manual consumption — auto-calc from stock readings (visible to all)
+    const manual = calcManualConsumption(e);
+    const manualCell = manual
+      ? `<b>${manual.value.toFixed(2)}</b> <span style="font-size:10px;color:var(--text-soft)">${unit}</span>`
+      : '<span style="color:var(--text-soft)">—</span>';
+ 
+    // GPS consumption — admin-entered (with quick-add for owner, read-only for managers)
+    let gpsCell;
     if(e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)){
       const cv = (+e.consumption).toFixed(2);
-      consCell = isOwner
-        ? `<b style="color:var(--accent-dark)">${cv}</b> <span style="font-size:10px;color:var(--text-soft)">${unit}</span> <button class="btn xs ghost" style="font-size:10px;padding:1px 5px;margin-left:2px" onclick="setConsumptionModal('${e.id}')" title="Edit consumption">✎</button>`
+      gpsCell = isOwner
+        ? `<b style="color:var(--accent-dark)">${cv}</b> <span style="font-size:10px;color:var(--text-soft)">${unit}</span> <button class="btn xs ghost" style="font-size:10px;padding:1px 5px;margin-left:2px" onclick="setConsumptionModal('${e.id}')" title="Edit GPS consumption">✎</button>`
         : `<b style="color:var(--accent-dark)">${cv}</b> <span style="font-size:10px;color:var(--text-soft)">${unit}</span>`;
     } else {
-      consCell = isOwner
+      gpsCell = isOwner
         ? `<button class="btn xs ghost" style="font-size:11px;padding:2px 8px" onclick="setConsumptionModal('${e.id}')">+ Add</button>`
         : '<span style="color:var(--text-soft)">—</span>';
     }
+ 
+    // Δ — difference between manual and GPS, color-coded by severity
+    const diff = calcConsDiff(e);
+    let diffCell = '<span style="color:var(--text-soft)">—</span>';
+    if(diff){
+      const color = diff.severity === 'ok' ? 'var(--success)'
+                  : diff.severity === 'warn' ? '#a16207' : 'var(--danger)';
+      const sign = diff.delta > 0 ? '+' : '';
+      diffCell = `<b style="color:${color}">${sign}${diff.delta.toFixed(2)}</b><br><span style="font-size:10px;color:var(--text-soft)">${sign}${diff.pct.toFixed(1)}%</span>`;
+    }
+ 
     return `<tr>
       <td>${fmtDT(e.fill_time||e.created_at)}</td>
       ${showMgr?`<td>${escapeHtml(e.manager_name||'—')}</td>`:''}
@@ -1523,7 +1645,9 @@ function renderEntriesTable(entries, opts={}){
       <td>${fillBadge}</td>
       <td>${e.stock!=null && e.stock!=='' ? (+e.stock).toFixed(1) : '—'}</td>
       <td>${avgCell}</td>
-      <td>${consCell}</td>
+      <td>${manualCell}</td>
+      <td>${gpsCell}</td>
+      <td>${diffCell}</td>
       <td>${escapeHtml(src)}</td>
       ${cfCells}
       <td>${editBadge}</td>
@@ -1532,7 +1656,7 @@ function renderEntriesTable(entries, opts={}){
   }).join('');
   return `<div class="table-wrap"><table>
     <thead><tr>
-      <th>Time</th>${showMgr?'<th>Manager</th>':''}<th>Vehicle</th><th>HMR</th><th>Qty</th><th>Fill</th><th>Stock</th><th>Avg ${state.avgMode==='full2full'?'(F2F)':'(Trip)'}</th><th>Consumption</th><th>Source</th>${state.customFields.map(f=>`<th>${escapeHtml(f.field_label)}</th>`).join('')}<th></th>${canEdit?'<th></th>':''}
+      <th>Time</th>${showMgr?'<th>Manager</th>':''}<th>Vehicle</th><th>HMR</th><th>Qty</th><th>Fill</th><th title="Vehicle dipstick reading (Angul Naap)">Veh Stock</th><th>Avg ${state.avgMode==='full2full'?'(F2F)':'(Trip)'}</th><th title="Auto-calculated from stock readings">Manual Cons.</th><th title="Admin-entered consumption (from GPS / telematics)">GPS Cons.</th><th title="Manual − GPS difference">Δ</th><th>Source</th>${state.customFields.map(f=>`<th>${escapeHtml(f.field_label)}</th>`).join('')}<th></th>${canEdit?'<th></th>':''}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
@@ -2074,10 +2198,13 @@ window.doExport = function(){
       'HMR':e.hmr||'',
       'Quantity (L)':+e.quantity||0,
       'Fill Type': e.fill_type==='full'?'Full':(e.fill_type==='not_full'?'Not Full':''),
-      'Bowser Stock Reading': e.stock != null && e.stock !== '' ? +e.stock : '',
+      'Vehicle Stock (Angul Naap)': e.stock != null && e.stock !== '' ? +e.stock : '',
       'Trip Avg': (function(){ const a = calcAvg(e,'trip'); return a ? a.formatted : ''; })(),
       'Full-to-Full Avg': (function(){ const a = calcAvg(e,'full2full'); return a ? a.formatted : ''; })(),
-      'Consumption (Admin)': (e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)) ? (+e.consumption) : '',
+      'Manual Consumption (auto)': (function(){ const m = calcManualConsumption(e); return m ? +m.value.toFixed(3) : ''; })(),
+      'GPS Consumption (Admin)': (e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)) ? (+e.consumption) : '',
+      'Δ Manual − GPS': (function(){ const d = calcConsDiff(e); return d ? +d.delta.toFixed(3) : ''; })(),
+      'Δ %': (function(){ const d = calcConsDiff(e); return d ? +d.pct.toFixed(2) : ''; })(),
       'Source':e.source==='other'?(e.source_custom||'Other'):(e.source==='bowser_t1'?'Bowser T1':(e.source==='bowser_t2'?'Bowser T2':e.source||'')),
       'Edit Count':e.edit_count||0,
       'Last Edited':e.edited_at?fmtDT(e.edited_at):'',
@@ -2193,7 +2320,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v2.1</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v2.2</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -2261,8 +2388,8 @@ function renderNewEntry(page){
       </div>
  
       <div class="form-row">
-        <label>Bowser Stock Reading <span style="color:var(--text-soft);text-transform:none;font-weight:400;letter-spacing:0">(manual)</span></label>
-        <input type="number" step="0.1" id="ne-stock" placeholder="Physical meter reading on the bowser" inputmode="decimal">
+        <label>Vehicle Stock <span style="color:var(--text-soft);text-transform:none;font-weight:400;letter-spacing:0">(Angul Naap)</span></label>
+        <input type="number" step="0.1" id="ne-stock" placeholder="Dipstick reading of the vehicle tank" inputmode="decimal">
       </div>
  
       <div class="form-row">
@@ -2485,13 +2612,13 @@ window.editEntryModal = function(id){
       </div>
     </div>
     <div class="form-row">
-      <label>Bowser Stock Reading</label>
+      <label>Vehicle Stock <span style="color:var(--text-soft);font-weight:400">(Angul Naap)</span></label>
       <input type="number" step="0.1" id="ee-stock" value="${e.stock||''}" inputmode="decimal">
     </div>
     <div class="form-row"><label>Time</label><input type="datetime-local" id="ee-time" value="${tLocal}"></div>
     <div class="form-row">
-      <label>Consumption <span style="color:var(--text-soft);font-weight:400">(${veh && veh.type==='machine'?'L/hr':'km/L'} — Admin-set, visible to all)</span></label>
-      <input type="number" step="0.01" id="ee-consumption" value="${e.consumption!=null?(+e.consumption):''}" placeholder="Leave blank if not measured" inputmode="decimal">
+      <label>GPS Consumption <span style="color:var(--text-soft);font-weight:400">(${veh && veh.type==='machine'?'L/hr':'km/L'} — Admin-set, visible to all)</span></label>
+      <input type="number" step="0.01" id="ee-consumption" value="${e.consumption!=null?(+e.consumption):''}" placeholder="From GPS / telematics reading" inputmode="decimal">
     </div>
     <div class="form-row"><label>Source</label>
       <select id="ee-src">
@@ -2574,7 +2701,7 @@ window.saveEditEntry = function(id){
  
 // ----- Consumption quick-add modal (owner only) -----
 window.setConsumptionModal = function(id){
-  if(!state.user || state.user.role !== 'owner'){ toast('Only Admin can set consumption','err'); return; }
+  if(!state.user || state.user.role !== 'owner'){ toast('Only Admin can set GPS consumption','err'); return; }
   const e = state.entries.find(x=>x.id===id); if(!e) return;
   const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
   const isMachine = veh && veh.type === 'machine';
@@ -2582,15 +2709,15 @@ window.setConsumptionModal = function(id){
   const vehDisplay = veh ? (veh.reg_no || veh.name) : (e.vehicle_name || '—');
   const currentVal = (e.consumption != null && e.consumption !== '') ? (+e.consumption).toString() : '';
  
-  openModal('Set Consumption', `
+  openModal('Set GPS Consumption', `
     <div style="background:var(--surface);padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px">
       <div><b>${escapeHtml(vehDisplay)}</b> · ${fmtDT(e.fill_time||e.created_at)}</div>
       <div style="color:var(--text-muted);margin-top:2px">${(+e.quantity||0).toFixed(1)} L issued · HMR ${e.hmr||'—'}</div>
     </div>
     <div class="form-row">
-      <label>Consumption value <span style="color:var(--text-soft);font-weight:400">(${unit})</span></label>
+      <label>GPS Consumption value <span style="color:var(--text-soft);font-weight:400">(${unit})</span></label>
       <input type="number" step="0.01" id="cons-val" value="${escapeHtml(currentVal)}" placeholder="e.g. ${isMachine?'4.5':'8.2'}" inputmode="decimal" autofocus>
-      <div class="hint">Verified consumption reading (visible to all managers). Leave blank and save to clear.</div>
+      <div class="hint">Reading from GPS / telematics system. Visible to all managers. Leave blank and save to clear.</div>
     </div>
     <div style="display:flex;gap:8px">
       ${currentVal ? `<button class="btn ghost" style="flex:1" onclick="saveConsumption('${id}', true)">Clear</button>` : ''}
@@ -2616,7 +2743,7 @@ window.saveConsumption = function(id, clear){
   updateEntry(id, { consumption: val });
   closeModal();
   renderDash();
-  toast(val === null ? 'Consumption cleared' : 'Consumption saved','ok');
+  toast(val === null ? 'GPS Consumption cleared' : 'GPS Consumption saved','ok');
 };
  
 // ============================================================
