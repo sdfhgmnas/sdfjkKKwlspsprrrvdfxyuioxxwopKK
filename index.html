@@ -220,18 +220,29 @@ table td{padding:8px 10px;border-bottom:1px solid var(--surface-2);vertical-alig
 table tbody tr:hover{background:var(--surface)}
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
  
-/* ===== STICKY TABLE — frozen header row + first 3 cols (Time/Manager/Vehicle) ===== */
+/* ===== STICKY TABLE — frozen left cols (Time/Manager/Vehicle).
+   No max-height: page scrolls naturally so admin sees ALL entries.
+   Sticky thead stays "in-flow" (scrolls with container) — acceptable trade-off. ===== */
 .sticky-table{
-  max-height:70vh;overflow:auto;position:relative;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  position:relative;
   border:1px solid var(--border);border-radius:var(--radius-sm);
   background:#fff;
 }
 .sticky-table table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%}
-.sticky-table th,.sticky-table td{background:#fff;border-bottom:1px solid var(--surface-2);white-space:nowrap}
-.sticky-table thead th{
-  position:sticky;top:0;z-index:5;
-  background:var(--surface-2);border-bottom:1px solid var(--border-dark);
+.sticky-table th,.sticky-table td{
+  background:#fff;border-bottom:1px solid var(--surface-2);
+  white-space:nowrap;padding:8px 10px;
 }
+.sticky-table thead th{
+  background:var(--surface-2);border-bottom:1px solid var(--border-dark);
+  font-weight:600;color:var(--text);
+  cursor:pointer;user-select:none;
+}
+.sticky-table thead th .sort-arr{
+  display:inline-block;margin-left:4px;opacity:.4;font-size:10px;font-weight:400;
+}
+.sticky-table thead th.sorted .sort-arr{opacity:1;color:var(--accent-dark)}
 .sticky-table tbody tr:hover td{background:var(--surface)}
  
 /* Sticky-1 = Time column (always present) */
@@ -239,7 +250,7 @@ table tbody tr:hover{background:var(--surface)}
   position:sticky;left:0;z-index:3;
   min-width:95px;max-width:95px;
 }
-/* Sticky-2 = Manager column (when Manager is shown — owner view) */
+/* Sticky-2 = Manager column (when shown — owner view) */
 .sticky-table .sticky-2{
   position:sticky;left:95px;z-index:3;
   min-width:80px;max-width:80px;
@@ -250,22 +261,21 @@ table tbody tr:hover{background:var(--surface)}
   min-width:110px;max-width:110px;
   box-shadow:2px 0 4px rgba(0,0,0,.08);
 }
-/* Sticky-2-last = Vehicle column when Manager column is hidden (manager view) */
+/* Sticky-2-last = Vehicle column when Manager hidden (manager view) */
 .sticky-table .sticky-2-last{
   position:sticky;left:95px;z-index:3;
   min-width:110px;max-width:110px;
   box-shadow:2px 0 4px rgba(0,0,0,.08);
 }
-/* Header + frozen-col intersection needs the HIGHEST z-index to stay on top */
-.sticky-table thead .sticky-1,
-.sticky-table thead .sticky-2,
-.sticky-table thead .sticky-3,
-.sticky-table thead .sticky-2-last{z-index:6}
-/* Keep frozen cells matching the row's hover background */
+/* Frozen cols must remain visible on hover */
 .sticky-table tbody tr:hover .sticky-1,
 .sticky-table tbody tr:hover .sticky-2,
 .sticky-table tbody tr:hover .sticky-3,
 .sticky-table tbody tr:hover .sticky-2-last{background:var(--surface)}
+.sticky-table thead .sticky-1,
+.sticky-table thead .sticky-2,
+.sticky-table thead .sticky-3,
+.sticky-table thead .sticky-2-last{background:var(--surface-2)}
  
 /* ===== VIEW TOGGLE PILLS (Table / Cards) ===== */
 .view-toggle{
@@ -525,10 +535,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v2.4 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v2.5 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v2.4</span>
+    <span style="opacity:.35;margin-left:6px">v2.5</span>
   </div>
 </div>
  
@@ -570,7 +580,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v2.4</span></div>
+    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v2.5</span></div>
     <span id="sync-pill" class="sync-pill sync-online"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -668,6 +678,7 @@ const state = {
   activeTab: 'overview',
   avgMode: localStorage.getItem('tasr_avg_mode') || 'trip', // 'trip' or 'full2full'
   analysisVehicleId: null,
+  entrySort: { col: 'time', dir: 'desc' },  // header click toggles
 };
  
 const LS_KEY = 'tasr_fuel_state_v1';
@@ -889,7 +900,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v2.4] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v2.5] Calc input handlers attached at document level (click + pointerup + touchstart)');
  
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1714,22 +1725,92 @@ function renderEntriesTable(entries, opts={}){
   let viewMode = 'table';
   try { viewMode = localStorage.getItem('tasr_view_mode') || 'table'; } catch(e) {}
  
-  const toggle = entries.length ? `
-    <div class="view-toggle">
-      <button class="vt ${viewMode==='table'?'active':''}" onclick="setViewMode('table')">📊 Table</button>
-      <button class="vt ${viewMode==='cards'?'active':''}" onclick="setViewMode('cards')">🎴 Cards</button>
+  const sort = state.entrySort || { col:'time', dir:'desc' };
+  const sortLabel = ({
+    time:'Time', manager:'Manager', vehicle:'Vehicle', hmr:'HMR', qty:'Qty',
+    stock:'Veh Stock', avg:'Avg', manual:'Manual', gps:'GPS', source:'Source'
+  })[sort.col] || sort.col;
+  const sortNonDefault = !(sort.col === 'time' && sort.dir === 'desc');
+ 
+  const toolbar = entries.length ? `
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <div class="view-toggle">
+        <button class="vt ${viewMode==='table'?'active':''}" onclick="setViewMode('table')">📊 Table</button>
+        <button class="vt ${viewMode==='cards'?'active':''}" onclick="setViewMode('cards')">🎴 Cards</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <b style="color:var(--text)">${entries.length}</b> entries
+        · sorted by <b style="color:var(--accent-dark)">${sortLabel}</b> ${sort.dir === 'asc' ? '▲' : '▼'}
+        ${sortNonDefault ? `<button class="btn xs ghost" onclick="resetEntrySort()">Reset</button>` : ''}
+      </div>
     </div>` : '';
  
   if(!entries.length) return `<div class="empty"><div class="em">⛽</div>No entries yet</div>`;
-  if(viewMode === 'cards') return toggle + renderEntriesCardsView(entries, opts);
-  return toggle + renderEntriesTableView(entries, opts);
+  if(viewMode === 'cards') return toolbar + renderEntriesCardsView(entries, opts);
+  return toolbar + renderEntriesTableView(entries, opts);
 }
+ 
+window.resetEntrySort = function(){
+  state.entrySort = { col:'time', dir:'desc' };
+  renderDash();
+};
  
 // Persist view-mode (Table / Cards) across sessions
 window.setViewMode = function(m){
   try { localStorage.setItem('tasr_view_mode', m); } catch(e){}
   renderDash();
 };
+ 
+// Sortable column support. Click a header → toggle sort.
+function sortEntries(list){
+  const { col, dir } = state.entrySort || { col:'time', dir:'desc' };
+  const sign = dir === 'asc' ? 1 : -1;
+  const getVal = (e, c) => {
+    switch(c){
+      case 'time':    return new Date(e.fill_time||e.created_at).getTime();
+      case 'manager': return (e.manager_name||'').toLowerCase();
+      case 'vehicle': {
+        const v = state.vehicles.find(x=>x.id===e.vehicle_id);
+        return ((v?(v.reg_no||v.name):'') || e.vehicle_name || '').toLowerCase();
+      }
+      case 'hmr':     return parseFloat(e.hmr)||0;
+      case 'qty':     return parseFloat(e.quantity)||0;
+      case 'stock':   return parseFloat(e.stock)||0;
+      case 'avg':     { const a = calcAvg(e); return a ? a.value : -Infinity; }
+      case 'manual':  { const m = calcManualConsumption(e); return (m && m.value !== undefined) ? m.value : -Infinity; }
+      case 'gps':     return (e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)) ? +e.consumption : -Infinity;
+      case 'source':  return (e.source||'').toLowerCase();
+      default:        return 0;
+    }
+  };
+  return [...list].sort((a,b)=>{
+    const av = getVal(a, col), bv = getVal(b, col);
+    if(typeof av === 'string') return av.localeCompare(bv) * sign;
+    if(av < bv) return -1 * sign;
+    if(av > bv) return  1 * sign;
+    return 0;
+  });
+}
+ 
+window.sortBy = function(col){
+  if(!state.entrySort) state.entrySort = { col:'time', dir:'desc' };
+  if(state.entrySort.col === col){
+    state.entrySort.dir = state.entrySort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.entrySort.col = col;
+    state.entrySort.dir = (col === 'time' || col === 'qty' || col === 'avg' || col === 'manual' || col === 'gps' || col === 'hmr' || col === 'stock') ? 'desc' : 'asc';
+  }
+  renderDash();
+};
+ 
+function sortArrow(col){
+  if(!state.entrySort || state.entrySort.col !== col) return '<span class="sort-arr">↕</span>';
+  return `<span class="sort-arr">${state.entrySort.dir === 'asc' ? '▲' : '▼'}</span>`;
+}
+ 
+function sortedClass(col){
+  return (state.entrySort && state.entrySort.col === col) ? 'sorted' : '';
+}
  
 // Build a per-entry display bag so Table + Cards share the same formatting
 function buildEntryDisplay(e){
@@ -1775,11 +1856,13 @@ function buildEntryDisplay(e){
   return { veh, vehDisplay, unit, src, editBadge, fillBadge, avgCell, manualCell, gpsCell, diffCell };
 }
  
-// Table view — header row sticky on vertical scroll, Time/Manager/Vehicle columns
-// sticky on horizontal scroll
+// Table view — sticky-LEFT columns (Time/Manager/Vehicle frozen on horizontal scroll).
+// Click any header to sort by that column. Vertical scroll is page-level so admin
+// sees ALL entries by scrolling the page — no internal scroll box.
 function renderEntriesTableView(entries, opts={}){
   const showMgr = opts.showManager !== false;
   const canEdit = opts.canEdit;
+  const sorted = sortEntries(entries);
  
   // Freeze classes: Time = sticky-1 ALWAYS,
   // Manager = sticky-2 (if shown), Vehicle = sticky-3 OR sticky-2-last
@@ -1787,7 +1870,7 @@ function renderEntriesTableView(entries, opts={}){
   const stickyM = 'sticky-2';
   const stickyV = showMgr ? 'sticky-3' : 'sticky-2-last';
  
-  const rows = entries.map(e => {
+  const rows = sorted.map(e => {
     const d = buildEntryDisplay(e);
     const cfCells = state.customFields.map(f=>{
       const v = (e.custom_data||{})[f.field_key];
@@ -1813,7 +1896,7 @@ function renderEntriesTableView(entries, opts={}){
   }).join('');
   return `<div class="table-wrap sticky-table"><table>
     <thead><tr>
-      <th class="${stickyT}">Time</th>${showMgr?`<th class="${stickyM}">Manager</th>`:''}<th class="${stickyV}">Vehicle</th><th>HMR</th><th>Qty</th><th>Fill</th><th title="Vehicle dipstick reading (Angul Naap)">Veh Stock</th><th>Avg ${state.avgMode==='full2full'?'(F2F)':'(Trip)'}</th><th title="Auto-calculated from stock readings">Manual Cons.</th><th title="Admin-entered consumption (from GPS / telematics)">GPS Cons.</th><th title="Manual − GPS difference">Δ</th><th>Source</th>${state.customFields.map(f=>`<th>${escapeHtml(f.field_label)}</th>`).join('')}<th></th>${canEdit?'<th></th>':''}
+      <th class="${stickyT} ${sortedClass('time')}" onclick="sortBy('time')">Time ${sortArrow('time')}</th>${showMgr?`<th class="${stickyM} ${sortedClass('manager')}" onclick="sortBy('manager')">Manager ${sortArrow('manager')}</th>`:''}<th class="${stickyV} ${sortedClass('vehicle')}" onclick="sortBy('vehicle')">Vehicle ${sortArrow('vehicle')}</th><th class="${sortedClass('hmr')}" onclick="sortBy('hmr')">HMR ${sortArrow('hmr')}</th><th class="${sortedClass('qty')}" onclick="sortBy('qty')">Qty ${sortArrow('qty')}</th><th>Fill</th><th class="${sortedClass('stock')}" onclick="sortBy('stock')" title="Vehicle dipstick reading (Angul Naap)">Veh Stock ${sortArrow('stock')}</th><th class="${sortedClass('avg')}" onclick="sortBy('avg')">Avg ${state.avgMode==='full2full'?'(F2F)':'(Trip)'} ${sortArrow('avg')}</th><th class="${sortedClass('manual')}" onclick="sortBy('manual')" title="Auto-calculated from stock readings">Manual Cons. ${sortArrow('manual')}</th><th class="${sortedClass('gps')}" onclick="sortBy('gps')" title="Admin-entered consumption (from GPS / telematics)">GPS Cons. ${sortArrow('gps')}</th><th title="Manual − GPS difference">Δ</th><th class="${sortedClass('source')}" onclick="sortBy('source')">Source ${sortArrow('source')}</th>${state.customFields.map(f=>`<th>${escapeHtml(f.field_label)}</th>`).join('')}<th></th>${canEdit?'<th></th>':''}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
@@ -1823,7 +1906,8 @@ function renderEntriesTableView(entries, opts={}){
 function renderEntriesCardsView(entries, opts={}){
   const showMgr = opts.showManager !== false;
   const canEdit = opts.canEdit;
-  const cards = entries.map(e => {
+  const sorted = sortEntries(entries);
+  const cards = sorted.map(e => {
     const d = buildEntryDisplay(e);
     const customRows = state.customFields.map(f => {
       const v = (e.custom_data||{})[f.field_key];
@@ -2513,7 +2597,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v2.4</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v2.5</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
