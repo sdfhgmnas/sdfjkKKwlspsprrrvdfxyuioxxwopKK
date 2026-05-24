@@ -3,11 +3,11 @@
 //   - HTML: network-first, fallback to cache (so app updates work)
 //   - Static assets (icons, manifest, CDN libs): cache-first
 //   - Supabase API calls: always network (never cache dynamic data)
-
-const CACHE_VERSION = 'tasr-fuel-v1.9';
+ 
+const CACHE_VERSION = 'tasr-fuel-v2.4';
 const STATIC_CACHE  = CACHE_VERSION + '-static';
 const RUNTIME_CACHE = CACHE_VERSION + '-runtime';
-
+ 
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -18,7 +18,7 @@ const STATIC_ASSETS = [
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
 ];
-
+ 
 // INSTALL — pre-cache shell
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -29,7 +29,7 @@ self.addEventListener('install', event => {
     )
   );
 });
-
+ 
 // ACTIVATE — clean old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
@@ -38,17 +38,17 @@ self.addEventListener('activate', event => {
     ).then(() => self.clients.claim())
   );
 });
-
+ 
 // FETCH strategy
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
-
+ 
   const url = new URL(req.url);
-
+ 
   // Skip Supabase API calls — always go to network
   if (url.hostname.endsWith('.supabase.co')) return;
-
+ 
   // HTML / navigation requests: network-first
   const isHtml = req.mode === 'navigate' ||
                  (req.headers.get('accept') || '').includes('text/html');
@@ -62,7 +62,7 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
-
+ 
   // Other GETs: cache-first, fall back to network and cache the result
   event.respondWith(
     caches.match(req).then(cached => {
@@ -77,8 +77,9 @@ self.addEventListener('fetch', event => {
     })
   );
 });
-
+ 
 // Allow page to trigger immediate update
 self.addEventListener('message', event => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
+ 
