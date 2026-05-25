@@ -527,10 +527,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v2.6 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v2.7 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v2.6</span>
+    <span style="opacity:.35;margin-left:6px">v2.7</span>
   </div>
 </div>
  
@@ -572,7 +572,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v2.6</span></div>
+    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v2.7</span></div>
     <span id="sync-pill" class="sync-pill sync-online"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -892,7 +892,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v2.6] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v2.7] Calc input handlers attached at document level (click + pointerup + touchstart)');
  
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1845,8 +1845,8 @@ function sortEntries(list){
       case 'qty':     return parseFloat(e.quantity)||0;
       case 'stock':   return parseFloat(e.stock)||0;
       case 'avg':     { const a = calcAvg(e); return a ? a.value : -Infinity; }
-      case 'partial': { const m = calcPartialConsumption(e); return (m && m.value !== undefined) ? m.value : -Infinity; }
-      case 'f2f':     { const m = calcF2FConsumption(e); return (m && m.value !== undefined) ? m.value : -Infinity; }
+      case 'partial': { const m = calcPartialConsumption(e); return (m && m.consumed !== undefined) ? m.consumed : -Infinity; }
+      case 'f2f':     { const m = calcF2FConsumption(e); return (m && m.consumed !== undefined) ? m.consumed : -Infinity; }
       case 'gps':     return (e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)) ? +e.consumption : -Infinity;
       case 'source':  return (e.source||'').toLowerCase();
       default:        return 0;
@@ -1899,15 +1899,17 @@ function buildEntryDisplay(e){
   const avgCell = avg
     ? `<b style="color:${avg.meaningful?'var(--success)':'var(--text-muted)'}">${avg.formatted}</b>${avg.meaningful?'':' <span style="font-size:10px;color:var(--text-soft)">~</span>'}`
     : '—';
-  // Partial Consumption — auto-calc from stock between last Partial fill and current
+  // Partial Consumption — LITERS consumed between last Partial fill and current.
+  // Primary: liters (matches user's "consumption" definition).
+  // Secondary (small): the derived rate (km/L or L/hr) for quick reference.
   const partial = calcPartialConsumption(e);
   const partialCell = (partial && partial.value !== undefined)
-    ? `<b>${partial.value.toFixed(2)}</b> <span style="font-size:10px;color:var(--text-soft)">${unit}</span>`
+    ? `<b>${partial.consumed.toFixed(1)} L</b><br><span style="font-size:10px;color:var(--text-soft)">${partial.value.toFixed(2)} ${unit}</span>`
     : `<span style="color:var(--text-soft);cursor:help;border-bottom:1px dotted var(--text-soft)" title="${escapeHtml(partial && partial.reason ? partial.reason : 'Cannot compute')}">—</span>`;
-  // F2F Consumption — sum of fills between Full events
+  // F2F Consumption — LITERS = sum of all fills between two Full events.
   const f2f = calcF2FConsumption(e);
   const f2fCell = (f2f && f2f.value !== undefined)
-    ? `<b style="color:var(--accent-dark)">${f2f.value.toFixed(2)}</b> <span style="font-size:10px;color:var(--text-soft)">${unit}</span>`
+    ? `<b style="color:var(--accent-dark)">${f2f.consumed.toFixed(1)} L</b><br><span style="font-size:10px;color:var(--text-soft)">${f2f.value.toFixed(2)} ${unit}</span>`
     : `<span style="color:var(--text-soft);cursor:help;border-bottom:1px dotted var(--text-soft)" title="${escapeHtml(f2f && f2f.reason ? f2f.reason : 'Cannot compute')}">—</span>`;
   // GPS Consumption — admin-entered; owner can quick-add/edit, managers see read-only
   let gpsCell;
@@ -1975,8 +1977,8 @@ function renderEntriesTableView(entries, opts={}){
       <th>Fill</th>
       <th class="${sortedClass('stock')}" onclick="sortBy('stock')" title="Vehicle dipstick reading (Angul Naap)">Veh Stock ${sortArrow('stock')}</th>
       <th class="${sortedClass('avg')}" onclick="sortBy('avg')">Avg ${state.avgMode==='full2full'?'(F2F)':'(Trip)'} ${sortArrow('avg')}</th>
-      <th class="${sortedClass('partial')}" onclick="sortBy('partial')" title="Partial consumption — between last Not-Full fill and current">Partial Cons. ${sortArrow('partial')}</th>
-      <th class="${sortedClass('f2f')}" onclick="sortBy('f2f')" title="Full-to-Full consumption — sum of fills between Full events">F2F Cons. ${sortArrow('f2f')}</th>
+      <th class="${sortedClass('partial')}" onclick="sortBy('partial')" title="Partial Consumption — liters used between last Not-Full fill and current">Partial Cons. <span style="font-size:9px;color:var(--text-soft);font-weight:400">(L)</span> ${sortArrow('partial')}</th>
+      <th class="${sortedClass('f2f')}" onclick="sortBy('f2f')" title="F2F Consumption — total liters between two Full Tank fills">F2F Cons. <span style="font-size:9px;color:var(--text-soft);font-weight:400">(L)</span> ${sortArrow('f2f')}</th>
       <th class="${sortedClass('gps')}" onclick="sortBy('gps')" title="Admin-entered consumption (from GPS / telematics)">GPS Cons. ${sortArrow('gps')}</th>
       <th title="Manual − GPS difference (uses F2F when available, else Partial)">Δ</th>
       <th class="${sortedClass('source')}" onclick="sortBy('source')">Source ${sortArrow('source')}</th>
@@ -2014,8 +2016,8 @@ function renderEntriesCardsView(entries, opts={}){
           <div class="lbl">Quantity</div><div class="val"><b>${(+e.quantity||0).toFixed(1)}</b> L</div>
           <div class="lbl">Veh Stock</div><div class="val">${e.stock!=null && e.stock!=='' ? (+e.stock).toFixed(1)+' L' : '—'}</div>
           <div class="lbl">Avg ${state.avgMode==='full2full'?'(F2F)':'(Trip)'}</div><div class="val">${d.avgCell}</div>
-          <div class="lbl">Partial Cons</div><div class="val">${d.partialCell}</div>
-          <div class="lbl">F2F Cons</div><div class="val">${d.f2fCell}</div>
+          <div class="lbl">Partial Cons (L)</div><div class="val">${d.partialCell}</div>
+          <div class="lbl">F2F Cons (L)</div><div class="val">${d.f2fCell}</div>
           <div class="lbl">GPS Cons</div><div class="val">${d.gpsCell}</div>
           <div class="lbl">Δ Manual − GPS</div><div class="val">${d.diffCell}</div>
           ${customRows}
@@ -2574,8 +2576,10 @@ window.doExport = function(){
       'Vehicle Stock (Angul Naap)': e.stock != null && e.stock !== '' ? +e.stock : '',
       'Trip Avg': (function(){ const a = calcAvg(e,'trip'); return a ? a.formatted : ''; })(),
       'Full-to-Full Avg': (function(){ const a = calcAvg(e,'full2full'); return a ? a.formatted : ''; })(),
-      'Partial Consumption (auto)': (function(){ const m = calcPartialConsumption(e); return (m && m.value !== undefined) ? +m.value.toFixed(3) : ''; })(),
-      'F2F Consumption (auto)':     (function(){ const m = calcF2FConsumption(e); return (m && m.value !== undefined) ? +m.value.toFixed(3) : ''; })(),
+      'Partial Cons. (L)':       (function(){ const m = calcPartialConsumption(e); return (m && m.consumed !== undefined) ? +m.consumed.toFixed(2) : ''; })(),
+      'Partial Avg':             (function(){ const m = calcPartialConsumption(e); return (m && m.value !== undefined) ? +m.value.toFixed(3) + ' ' + m.unit : ''; })(),
+      'F2F Cons. (L)':           (function(){ const m = calcF2FConsumption(e); return (m && m.consumed !== undefined) ? +m.consumed.toFixed(2) : ''; })(),
+      'F2F Avg':                 (function(){ const m = calcF2FConsumption(e); return (m && m.value !== undefined) ? +m.value.toFixed(3) + ' ' + m.unit : ''; })(),
       'GPS Consumption (Admin)': (e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)) ? (+e.consumption) : '',
       'Δ Manual − GPS': (function(){ const d = calcConsDiff(e); return d ? +d.delta.toFixed(3) : ''; })(),
       'Δ %': (function(){ const d = calcConsDiff(e); return d ? +d.pct.toFixed(2) : ''; })(),
@@ -2694,7 +2698,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v2.6</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v2.7</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
