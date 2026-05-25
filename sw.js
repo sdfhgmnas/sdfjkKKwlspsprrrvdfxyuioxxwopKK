@@ -4,7 +4,7 @@
 //   - Static assets (icons, manifest, CDN libs): cache-first
 //   - Supabase API calls: always network (never cache dynamic data)
  
-const CACHE_VERSION = 'tasr-fuel-v2.8';
+const CACHE_VERSION = 'tasr-fuel-v2.9';
 const STATIC_CACHE  = CACHE_VERSION + '-static';
 const RUNTIME_CACHE = CACHE_VERSION + '-runtime';
  
