@@ -256,22 +256,24 @@ table tbody tr:hover{background:var(--surface)}
 .sticky-table tbody tr:hover .sticky-1{background:var(--surface)}
 .sticky-table thead .sticky-1{background:var(--surface-2)}
  
-/* ===== FIELD-FILLED INDICATOR — light green when manager has entered a value ===== */
+/* ===== FIELD-FILLED INDICATOR — vivid green when manager has entered a value ===== */
 .field-filled{
-  background-color:#ecfdf5 !important;
-  border-color:#6ee7b7 !important;
+  background-color:#bbf7d0 !important;     /* green-200, clearly green */
+  border-color:#22c55e !important;          /* green-500 border */
+  color:#14532d !important;                 /* dark green text for contrast */
   transition:background-color .2s, border-color .2s;
 }
 .field-filled:focus{
-  background-color:#d1fae5 !important;
-  border-color:#34d399 !important;
+  background-color:#86efac !important;      /* green-300, deeper when active */
+  border-color:#16a34a !important;          /* green-600 */
+  box-shadow:0 0 0 3px rgba(34,197,94,.18); /* soft focus ring */
 }
-/* Subtle "filled" check icon shown after the label for filled fields */
+/* "Done" check icon on the label */
 .form-row.row-filled label::after{
   content:' ✓';
-  color:#10b981;
-  font-weight:700;
-  font-size:11px;
+  color:#16a34a;
+  font-weight:800;
+  font-size:12px;
 }
  
 /* ===== REFERENCE CARD on New Entry form — shows last fill of selected vehicle ===== */
@@ -545,10 +547,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v2.8 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v2.9 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v2.8</span>
+    <span style="opacity:.35;margin-left:6px">v2.9</span>
   </div>
 </div>
  
@@ -590,7 +592,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v2.8</span></div>
+    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v2.9</span></div>
     <span id="sync-pill" class="sync-pill sync-online"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -910,7 +912,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v2.8] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v2.9] Calc input handlers attached at document level (click + pointerup + touchstart)');
  
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -2716,7 +2718,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v2.8</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v2.9</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
