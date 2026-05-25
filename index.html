@@ -547,10 +547,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v2.9 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v3.1 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v2.9</span>
+    <span style="opacity:.35;margin-left:6px">v3.1</span>
   </div>
 </div>
  
@@ -592,7 +592,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v2.9</span></div>
+    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v3.1</span></div>
     <span id="sync-pill" class="sync-pill sync-online"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -912,7 +912,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v2.9] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v3.1] Calc input handlers attached at document level (click + pointerup + touchstart)');
  
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1414,6 +1414,16 @@ function updateEntry(id, patch, editor){
   applyBowserDelta(prev, next);
   persist();
   queueOp({table:'entries', action:'upsert', data:next});
+}
+// Delete an entry permanently. Refunds Bowser stock if entry was from a bowser.
+function deleteEntry(id){
+  const i = state.entries.findIndex(x=>x.id===id);
+  if(i<0) return;
+  const prev = state.entries[i];
+  applyBowserDelta(prev, null);   // refund qty back to bowser if applicable
+  state.entries.splice(i, 1);
+  persist();
+  queueOp({table:'entries', action:'delete', match:{id}});
 }
  
 // SETTINGS
@@ -1984,7 +1994,10 @@ function renderEntriesTableView(entries, opts={}){
       <td>${escapeHtml(d.src)}</td>
       ${cfCells}
       <td>${d.editBadge}</td>
-      ${canEdit?`<td><button class="btn small ghost" onclick="editEntryModal('${e.id}')">Edit</button></td>`:''}
+      ${canEdit?`<td><div class="row-actions">
+        <button class="btn small ghost" onclick="editEntryModal('${e.id}')">Edit</button>
+        ${state.user && state.user.role==='owner' ? `<button class="icon-btn danger" title="Delete" onclick="confirmDeleteEntry('${e.id}')">🗑</button>` : ''}
+      </div></td>`:''}
     </tr>`;
   }).join('');
   return `<div class="table-wrap sticky-table"><table>
@@ -2042,7 +2055,10 @@ function renderEntriesCardsView(entries, opts={}){
           <div class="lbl">Δ Manual − GPS</div><div class="val">${d.diffCell}</div>
           ${customRows}
         </div>
-        ${canEdit?`<div class="entry-card-actions"><button class="btn small ghost" onclick="editEntryModal('${e.id}')">Edit</button></div>`:''}
+        ${canEdit?`<div class="entry-card-actions">
+          <button class="btn small ghost" onclick="editEntryModal('${e.id}')">Edit</button>
+          ${state.user && state.user.role==='owner' ? `<button class="btn small ghost" style="color:var(--danger);border-color:#fecaca" onclick="confirmDeleteEntry('${e.id}')">🗑 Delete</button>` : ''}
+        </div>`:''}
       </div>`;
   }).join('');
   return `<div class="entry-cards">${cards}</div>`;
@@ -2054,7 +2070,10 @@ function renderAllEntries(page){
     <div class="section">
       <div class="section-h">
         <h3>All Fuel Entries</h3>
-        <span class="sub" id="filter-count"></span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="sub" id="filter-count"></span>
+          <button class="btn small" onclick="adminAddEntryModal()">+ Add Entry</button>
+        </div>
       </div>
       <div class="grid grid-3" style="margin-bottom:10px">
         <div class="form-row" style="margin:0">
@@ -2718,7 +2737,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v2.9</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v3.1</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -3252,6 +3271,180 @@ window.saveEditEntry = function(id){
   }
   updateEntry(id, patch);
   closeModal(); renderDash(); toast('Entry updated','ok');
+};
+ 
+// ----- DELETE ENTRY (owner only, with Bowser refund warning) -----
+window.confirmDeleteEntry = function(id){
+  if(!state.user || state.user.role !== 'owner'){ toast('Only Admin can delete entries','err'); return; }
+  const e = state.entries.find(x=>x.id===id); if(!e) return;
+  const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
+  const vehName = veh ? (veh.reg_no||veh.name) : (e.vehicle_name||'—');
+  const isBowser = e.source==='bowser_t1' || e.source==='bowser_t2';
+  const tankLabel = e.source==='bowser_t1' ? 'T1' : 'T2';
+  const refundLine = isBowser
+    ? `Bowser ${tankLabel} stock will be refunded by ${(+e.quantity||0).toFixed(1)} L.`
+    : `No bowser refund (source: ${e.source||'—'}).`;
+ 
+  openModal('Delete Entry', `
+    <div style="background:#fef2f2;border-left:3px solid var(--danger);padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:14px">
+      <div style="font-weight:600;color:var(--danger);margin-bottom:6px">⚠️ Permanent deletion</div>
+      <div style="font-size:12px;color:var(--text-muted)">This entry will be removed permanently. ${refundLine}</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;font-size:13px">
+      <div style="margin-bottom:4px"><b>${escapeHtml(vehName)}</b> · ${(+e.quantity||0).toFixed(1)} L · ${escapeHtml(e.fill_type==='full'?'Full Tank':e.fill_type==='not_full'?'Not Full':'—')}</div>
+      <div style="color:var(--text-muted);font-size:11px">${fmtDT(e.fill_time||e.created_at)} · by ${escapeHtml(e.manager_name||'—')}</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="flex:1;background:var(--danger);border-color:var(--danger)" onclick="doDeleteEntry('${id}')">Delete Permanently</button>
+    </div>
+  `);
+};
+window.doDeleteEntry = function(id){
+  deleteEntry(id);
+  closeModal();
+  if(window._refilterAllEntries) window._refilterAllEntries();
+  else renderDash();
+  toast('Entry deleted','ok');
+};
+ 
+// ----- ADMIN: ADD ENTRY (full form modal, back-dating + manager-on-behalf) -----
+window.adminAddEntryModal = function(){
+  if(!state.user || state.user.role !== 'owner'){ toast('Only Admin can add entries this way','err'); return; }
+  const activeVehicles = state.vehicles.filter(v=>v.active!==false);
+  if(activeVehicles.length === 0){ toast('Add a vehicle first','err'); return; }
+  const activeMgrs = state.managers.filter(m=>m.active);
+  // Local datetime string for datetime-local input
+  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+ 
+  openModal('Add Entry (Admin)', `
+    <div class="form-row">
+      <label>On behalf of *</label>
+      <select id="ae-mgr">
+        <option value="admin">— Admin (${escapeHtml(state.user.name||'Owner')}) —</option>
+        ${activeMgrs.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}
+      </select>
+      <div class="hint">Entry will be recorded under this name</div>
+    </div>
+    <div class="form-row">
+      <label>Time of fill *</label>
+      <input type="datetime-local" id="ae-time" value="${nowLocal}">
+      <div class="hint">Backdate if recording a missed entry</div>
+    </div>
+    <div class="form-row sd-wrap">
+      <label>Vehicle / Machine *</label>
+      <input type="text" id="ae-vehicle" placeholder="Search by reg number, type, or name…" autocomplete="off">
+      <input type="hidden" id="ae-vehicle-id">
+      <div id="ae-vehicle-results" class="sd-results"></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="form-row"><label>HMR / KM Reading *</label><input type="number" step="0.1" id="ae-hmr" placeholder="e.g. 4521.5"></div>
+      <div class="form-row"><label>Quantity (Litres) *</label><input type="number" step="0.1" id="ae-qty" placeholder="e.g. 45.0"></div>
+    </div>
+    <div class="form-row">
+      <label>Fill Type *</label>
+      <div class="source-pills" id="ae-fill-pills">
+        <button type="button" class="source-pill active" data-fill="full">Full Tank</button>
+        <button type="button" class="source-pill" data-fill="not_full">Not Full</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Vehicle Stock (Angul Naap) <span style="color:var(--text-soft);text-transform:none;font-weight:400">(optional)</span></label>
+      <input type="number" step="0.1" id="ae-stock" placeholder="Dipstick reading BEFORE filling">
+    </div>
+    <div class="form-row">
+      <label>Source *</label>
+      <div class="source-pills" id="ae-src-pills">
+        <button type="button" class="source-pill active" data-src="bowser_t1">Bowser T1</button>
+        <button type="button" class="source-pill" data-src="bowser_t2">Bowser T2</button>
+        <button type="button" class="source-pill" data-src="other">Other</button>
+      </div>
+      <input type="text" id="ae-src-custom" placeholder="Specify source" style="display:none;margin-top:8px">
+    </div>
+    ${state.customFields.map(f=>`
+      <div class="form-row">
+        <label>${escapeHtml(f.field_label)} ${f.required?'*':''}</label>
+        <input type="${f.field_type==='number'?'number':f.field_type==='date'?'date':'text'}" id="ae-cf-${f.id}" data-key="${f.field_key}" ${f.required?'data-req="1"':''}>
+      </div>
+    `).join('')}
+    <button class="btn" style="width:100%;margin-top:6px" onclick="adminSaveEntry()">Add Entry</button>
+  `);
+ 
+  // wire vehicle search inside modal
+  wireVehicleSearch('ae-vehicle', 'ae-vehicle-id', 'ae-vehicle-results',
+    () => state.vehicles.filter(v=>v.active!==false), null);
+ 
+  // wire pill toggles
+  setTimeout(() => {
+    document.querySelectorAll('#ae-src-pills .source-pill').forEach(p=>p.addEventListener('click', ()=>{
+      document.querySelectorAll('#ae-src-pills .source-pill').forEach(x=>x.classList.remove('active'));
+      p.classList.add('active');
+      const customEl = document.getElementById('ae-src-custom');
+      if(customEl) customEl.style.display = p.dataset.src==='other' ? '' : 'none';
+    }));
+    document.querySelectorAll('#ae-fill-pills .source-pill').forEach(p=>p.addEventListener('click', ()=>{
+      document.querySelectorAll('#ae-fill-pills .source-pill').forEach(x=>x.classList.remove('active'));
+      p.classList.add('active');
+    }));
+  }, 50);
+};
+ 
+window.adminSaveEntry = function(){
+  const vid = ($('#ae-vehicle-id')||{}).value || '';
+  if(!vid){ toast('Pick a vehicle','err'); return; }
+  const hmr = parseFloat($('#ae-hmr').value);
+  if(isNaN(hmr)){ toast('HMR/KM required','err'); return; }
+  const qty = parseFloat($('#ae-qty').value);
+  if(isNaN(qty) || qty<=0){ toast('Quantity required','err'); return; }
+ 
+  const mgrSel = $('#ae-mgr').value;
+  let mgrId, mgrName;
+  if(mgrSel === 'admin'){
+    mgrId = null;
+    mgrName = 'Admin · ' + (state.user.name || 'Owner');
+  } else {
+    mgrId = parseInt(mgrSel, 10);
+    const m = state.managers.find(x=>x.id===mgrId);
+    mgrName = m ? m.name : 'Unknown';
+  }
+ 
+  const veh = state.vehicles.find(v=>v.id===vid);
+  const timeStr = $('#ae-time').value;
+  const time = timeStr ? new Date(timeStr).toISOString() : new Date().toISOString();
+ 
+  const stockVal = parseFloat($('#ae-stock').value);
+  const sourceEl = document.querySelector('#ae-src-pills .source-pill.active');
+  const source = sourceEl ? sourceEl.dataset.src : 'bowser_t1';
+  const fillEl = document.querySelector('#ae-fill-pills .source-pill.active');
+  const fillType = fillEl ? fillEl.dataset.fill : 'full';
+ 
+  const customData = {};
+  state.customFields.forEach(f => {
+    const el = $('#ae-cf-'+f.id); if(!el) return;
+    const v = (el.value || '').trim();
+    if(v) customData[f.field_key] = v;
+  });
+ 
+  addEntry({
+    manager_id: mgrId,
+    manager_name: mgrName,
+    vehicle_id: vid,
+    vehicle_name: veh ? (veh.reg_no||veh.name) : '',
+    hmr: isNaN(hmr) ? null : hmr,
+    quantity: qty,
+    fill_type: fillType,
+    stock: isNaN(stockVal) ? null : stockVal,
+    source: source,
+    source_custom: source==='other' ? ($('#ae-src-custom').value||'').trim() : '',
+    custom_data: customData,
+    fill_time: time,
+    created_at: time,
+  });
+ 
+  closeModal();
+  if(window._refilterAllEntries) window._refilterAllEntries();
+  else renderDash();
+  toast('Entry added by Admin','ok');
 };
  
 // ----- Consumption quick-add modal (owner only) -----
