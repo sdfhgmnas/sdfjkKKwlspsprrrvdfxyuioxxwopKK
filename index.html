@@ -178,12 +178,12 @@ html{background:#000}
 .form-row{margin-bottom:12px}
 .form-row label{display:block;font-size:12px;font-weight:700;color:#3f37c9;margin-bottom:4px;letter-spacing:.3px;text-transform:uppercase}
 .form-row input,.form-row select,.form-row textarea{
-  width:100%;padding:10px 12px;border:1px solid var(--border-dark);
+  width:100%;padding:10px 12px;border:1px solid #3f37c9;
   border-radius:var(--radius-sm);background:#fff;color:var(--text);outline:none;
   transition:border-color .15s,box-shadow .15s;
 }
 .form-row input:focus,.form-row select:focus,.form-row textarea:focus{
-  border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light);
+  border-color:#3f37c9;box-shadow:0 0 0 3px rgba(63,55,201,.15);
 }
 .form-row .hint{font-size:11px;color:var(--text-soft);margin-top:3px}
 .msg{padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
@@ -406,8 +406,10 @@ body.lightbg .admin-btn{
 .bowser-bar{height:10px;background:var(--surface-2);border-radius:999px;overflow:hidden;margin-bottom:6px}
 .bowser-fill{height:100%;border-radius:999px;transition:width .3s,background .3s}
 .bowser-meta{font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center}
-.bowser-meta .refill-btn{font-size:11px;padding:3px 10px;background:var(--accent);color:#fff;border-radius:999px;font-weight:600}
+.bowser-meta .refill-btn{font-size:11px;padding:3px 10px;background:var(--accent);color:#fff;border-radius:999px;font-weight:600;border:1px solid var(--accent)}
 .bowser-meta .refill-btn:hover{background:var(--accent-dark)}
+.bowser-meta .refill-btn.ghost{background:#fff;color:var(--text-muted);border:1px solid var(--border-dark)}
+.bowser-meta .refill-btn.ghost:hover{background:var(--surface);color:var(--text)}
  
 /* Bowser stock banner (above source pills in new entry) */
 /* Bowser banner — visual cards with capacity bars */
@@ -495,6 +497,14 @@ body.lightbg .admin-btn{
 .badge.ok{background:#dcfce7;color:#166534}
 .badge.off{background:#fee2e2;color:#991b1b}
 .badge.warn{background:#fef3c7;color:#92400e}
+ 
+/* Serial number in vehicles/machines list — accent color, slight pill */
+.serial-no{
+  display:inline-block;padding:2px 8px;
+  background:#eef2ff;color:#4338ca;
+  border-radius:999px;font-size:11px;font-weight:700;
+  letter-spacing:.3px;min-width:24px;text-align:center;
+}
 .badge.info{background:#dbeafe;color:#1e40af}
  
 .row-actions{display:flex;gap:6px;flex-wrap:wrap}
@@ -552,9 +562,9 @@ body.lightbg .admin-btn{
 .pin-btn.pin-ok{background:var(--accent);color:#fff;font-weight:600;font-size:18px}
 .pin-btn.pin-ok:active{background:var(--accent-dark)}
 .source-pill{
-  flex:1;min-width:80px;padding:9px 10px;border:1px solid var(--border-dark);
+  flex:1;min-width:80px;padding:9px 10px;border:1px solid #3f37c9;
   border-radius:var(--radius-sm);background:#fff;font-weight:600;font-size:12px;
-  color:var(--text-muted);text-align:center;transition:all .15s;
+  color:#3f37c9;text-align:center;transition:all .15s;
 }
 .source-pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
  
@@ -575,7 +585,8 @@ body.lightbg .admin-btn{
   position:absolute;top:100%;left:0;right:0;z-index:30;
   background:#fff;border:1px solid var(--border-dark);border-top:none;
   border-radius:0 0 var(--radius-sm) var(--radius-sm);
-  max-height:260px;overflow-y:auto;
+  max-height:min(50vh, 320px);overflow-y:auto;
+  -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   box-shadow:0 6px 16px rgba(15,23,42,.12);
   display:none;
 }
@@ -645,10 +656,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v3.6 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v3.8 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v3.6</span>
+    <span style="opacity:.35;margin-left:6px">v3.8</span>
   </div>
 </div>
  
@@ -690,7 +701,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v3.6</span></div>
+    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v3.8</span></div>
     <span id="sync-pill" class="sync-pill sync-online"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1010,7 +1021,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v3.6] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v3.8] Calc input handlers attached at document level (click + pointerup + touchstart)');
  
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1660,11 +1671,56 @@ function renderBowserCard(tank, withRefill){
       <div class="bowser-bar"><div class="bowser-fill" style="width:${pct}%;background:${color}"></div></div>
       <div class="bowser-meta">
         <span>${pct.toFixed(0)}% full</span>
-        ${withRefill?`<button class="refill-btn" onclick="refillBowserModal('${tank}')">+ Refill</button>`:''}
+        ${withRefill ? `<div style="display:flex;gap:6px">
+          <button class="refill-btn ghost" onclick="overrideStockModal('${tank}')" title="Set exact stock value">✎ Override</button>
+          <button class="refill-btn" onclick="refillBowserModal('${tank}')">+ Refill</button>
+        </div>` : ''}
       </div>
     </div>
   `;
 }
+ 
+// Admin-only: directly set the exact stock value (corrections, audits, manual reconciliation)
+window.overrideStockModal = function(tank){
+  if(!state.user || state.user.role !== 'owner'){ toast('Only Admin can override stock','err'); return; }
+  const stock = getBowserStock(tank);
+  const cap = getBowserCapacity(tank);
+  openModal(`Override Bowser ${tank.toUpperCase()} Stock`, `
+    <div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:14px">
+      <div style="font-weight:600;color:#92400e;margin-bottom:4px;font-size:12px">⚠️ Use for corrections only</div>
+      <div style="font-size:11px;color:#78350f">This directly sets the stock value (no auto-adjust). Use Refill for normal additions. This action does NOT create an entry — it only adjusts the displayed stock.</div>
+    </div>
+    <div style="background:var(--surface);padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px">
+      Current: <b>${stock.toFixed(1)} L</b> / ${cap.toFixed(0)} L (${cap>0?((stock/cap)*100).toFixed(0):0}%)
+    </div>
+    <div class="form-row">
+      <label>New stock value (Litres) *</label>
+      <input type="number" step="0.1" id="ovr-val" placeholder="e.g. ${stock.toFixed(1)}" value="${stock.toFixed(1)}" inputmode="decimal" autofocus>
+      <div class="hint">Enter 0 for empty. Max capacity: ${cap.toFixed(0)} L (will cap automatically).</div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn small ghost" onclick="document.getElementById('ovr-val').value='0'">Set to 0</button>
+      <button class="btn small ghost" onclick="document.getElementById('ovr-val').value='${cap.toFixed(1)}'">Set to Full</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="flex:2;background:#f59e0b;border-color:#f59e0b" onclick="confirmOverrideStock('${tank}')">Confirm Override</button>
+    </div>
+  `);
+  setTimeout(()=>{
+    const el = document.getElementById('ovr-val');
+    if(el){ el.focus(); el.select(); }
+  }, 80);
+};
+window.confirmOverrideStock = function(tank){
+  const val = parseFloat($('#ovr-val').value);
+  if(isNaN(val) || val < 0){ toast('Enter a valid number ≥ 0','err'); return; }
+  const cap = getBowserCapacity(tank);
+  const newStock = Math.min(cap, Math.max(0, val));
+  updateSetting('bowser_'+tank+'_stock', newStock);
+  closeModal(); renderDash();
+  toast('Bowser '+tank.toUpperCase()+' stock set to '+newStock.toFixed(1)+' L','ok');
+};
  
 window.refillBowserModal = function(tank){
   const stock = getBowserStock(tank);
@@ -2179,42 +2235,53 @@ function renderAllEntries(page){
         <h3>All Fuel Entries</h3>
         <div style="display:flex;align-items:center;gap:10px">
           <span class="sub" id="filter-count"></span>
-          <button class="btn small" onclick="adminAddEntryModal()">+ Add Entry</button>
+          <button class="btn small" onclick="adminAddEntryModal()"><i class="ti ti-plus" style="vertical-align:-2px"></i> Add Entry</button>
         </div>
       </div>
-      <div class="grid grid-3" style="margin-bottom:10px">
-        <div class="form-row" style="margin:0">
-          <label>From date</label>
-          <input type="date" id="filter-from">
+ 
+      <div class="form-section" style="background:#fafbff;border:1px solid #e0e7ff">
+        <div class="form-section-label" style="margin-top:0">Filters</div>
+        <div class="grid grid-2" style="margin-bottom:10px">
+          <div class="form-row" style="margin:0">
+            <label>From date</label>
+            <input type="date" id="filter-from">
+          </div>
+          <div class="form-row" style="margin:0">
+            <label>To date</label>
+            <input type="date" id="filter-to">
+          </div>
         </div>
-        <div class="form-row" style="margin:0">
-          <label>To date</label>
-          <input type="date" id="filter-to">
+        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+          <button class="btn xs ghost" onclick="setDateFilterPreset('today')">Today</button>
+          <button class="btn xs ghost" onclick="setDateFilterPreset('week')">Last 7 days</button>
+          <button class="btn xs ghost" onclick="setDateFilterPreset('month')">Last 30 days</button>
+          <button class="btn xs ghost" onclick="setDateFilterPreset('clear')">Clear dates</button>
         </div>
-        <div class="form-row" style="margin:0">
-          <label>Manager</label>
-          <select id="filter-mgr">
-            <option value="">All managers</option>
-            ${state.managers.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}
-          </select>
+ 
+        <div class="grid grid-2" style="margin-bottom:10px">
+          <div class="form-row" style="margin:0">
+            <label>Manager</label>
+            <select id="filter-mgr">
+              <option value="">All managers</option>
+              ${state.managers.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-row" style="margin:0">
+            <label>Vehicle / Machine</label>
+            <div class="sd-wrap">
+              <input type="text" id="filter-vehicle-text" placeholder="Type to search…" autocomplete="off">
+              <input type="hidden" id="filter-vehicle">
+              <div id="filter-vehicle-results" class="sd-results"></div>
+            </div>
+          </div>
+        </div>
+ 
+        <div class="form-row" style="margin-bottom:0">
+          <label>Free text search</label>
+          <input type="text" id="filter-search" placeholder="Reg no, manager name, source…">
         </div>
       </div>
-      <div class="form-row" style="margin-bottom:10px">
-        <label>Vehicle / Machine</label>
-        <select id="filter-vehicle" style="width:100%">
-          <option value="">All vehicles</option>
-          ${state.vehicles.map(v => `<option value="${v.id}">${escapeHtml(v.reg_no || v.name)}${v.branch?' · '+escapeHtml(v.branch):''}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-row" style="margin-bottom:10px">
-        <input type="text" id="filter-search" placeholder="Search by reg no, vehicle, manager, source…" style="width:100%;padding:8px 10px;border:1px solid var(--border-dark);border-radius:var(--radius-sm);font-size:13px">
-      </div>
-      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-        <button class="btn small ghost" onclick="setDateFilterPreset('today')">Today</button>
-        <button class="btn small ghost" onclick="setDateFilterPreset('week')">Last 7 days</button>
-        <button class="btn small ghost" onclick="setDateFilterPreset('month')">Last 30 days</button>
-        <button class="btn small ghost" onclick="setDateFilterPreset('clear')">Clear dates</button>
-      </div>
+ 
       ${avgModeToggleHtml()}
       <div id="entries-table">${renderEntriesTable(state.entries, {showManager:true})}</div>
     </div>
@@ -2245,7 +2312,24 @@ function renderAllEntries(page){
     $('#entries-table').innerHTML = renderEntriesTable(list, {showManager:true, canEdit:true});
   };
  
-  ['filter-search','filter-mgr','filter-vehicle','filter-from','filter-to'].forEach(id=>{
+  // Wire searchable vehicle filter
+  wireVehicleSearch('filter-vehicle-text', 'filter-vehicle', 'filter-vehicle-results',
+    () => state.vehicles.slice().sort((a,b)=>(a.reg_no||a.name||'').localeCompare(b.reg_no||b.name||'')), null);
+ 
+  // Poll the hidden vehicle ID for changes
+  let lastFilterVeh = '';
+  const filterPoll = setInterval(() => {
+    const el = $('#filter-vehicle'); if(!el || !document.body.contains(el)){ clearInterval(filterPoll); return; }
+    if(el.value !== lastFilterVeh){
+      lastFilterVeh = el.value;
+      window._refilterAllEntries();
+    }
+  }, 300);
+  // Clear vehicle when search text is wiped
+  const fvText = $('#filter-vehicle-text');
+  if(fvText) fvText.addEventListener('input', () => { if(!fvText.value.trim()) $('#filter-vehicle').value=''; });
+ 
+  ['filter-search','filter-mgr','filter-from','filter-to'].forEach(id=>{
     const el = $('#'+id); if(!el) return;
     el.addEventListener(id==='filter-search'?'input':'change', window._refilterAllEntries);
   });
@@ -2461,6 +2545,42 @@ function renderVehicleEntryLog(veh, stats){
  
 // ---------- OWNER: VEHICLES ----------
 function renderVehicles(page){
+  const all = state.vehicles.slice();
+  // Stable sort by reg_no — gives consistent serial numbering
+  all.sort((a,b) => (a.reg_no||a.name||'').localeCompare(b.reg_no||b.name||''));
+  const vehicles = all.filter(v => v.type !== 'machine');
+  const machines = all.filter(v => v.type === 'machine');
+ 
+  function tableHtml(list, kind){
+    if(list.length === 0){
+      return `<div class="empty" style="padding:20px"><div class="em">${kind==='machine'?'⚙️':'🚜'}</div>No ${kind}s yet</div>`;
+    }
+    return `<div class="table-wrap"><table>
+      <thead><tr>
+        <th style="width:50px">S.No</th>
+        <th>Reg No</th>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Branch</th>
+        <th>Status</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${list.map((v, idx)=>`
+        <tr>
+          <td><span class="serial-no">${idx+1}</span></td>
+          <td><b>${escapeHtml(v.reg_no||'—')}</b></td>
+          <td><span class="badge ${v.type==='machine'?'warn':'info'}">${v.type||'vehicle'}</span></td>
+          <td>${escapeHtml(v.name && v.name!==v.reg_no ? v.name : '—')}</td>
+          <td>${escapeHtml(v.branch||'—')}</td>
+          <td>${v.active===false?'<span class="badge off">Inactive</span>':'<span class="badge ok">Active</span>'}</td>
+          <td><div class="row-actions">
+            <button class="icon-btn" title="Edit" onclick="editVehicleModal('${v.id}')">✎</button>
+            <button class="icon-btn danger" title="Delete" onclick="confirmDeleteVehicle('${v.id}')">🗑</button>
+          </div></td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
+  }
+ 
   page.innerHTML = `
     <div class="section">
       <div class="section-h">
@@ -2469,21 +2589,13 @@ function renderVehicles(page){
       </div>
       ${state.vehicles.length===0
         ? '<div class="empty"><div class="em">🚜</div>No vehicles yet. Add one to enable diesel entries.</div>'
-        : `<div class="table-wrap"><table>
-            <thead><tr><th>Reg No</th><th>Type</th><th>Name</th><th>Branch</th><th>Status</th><th></th></tr></thead>
-            <tbody>${state.vehicles.map(v=>`
-              <tr>
-                <td><b>${escapeHtml(v.reg_no||'—')}</b></td>
-                <td><span class="badge info">${v.type||'vehicle'}</span></td>
-                <td>${escapeHtml(v.name && v.name!==v.reg_no ? v.name : '—')}</td>
-                <td>${escapeHtml(v.branch||'—')}</td>
-                <td>${v.active===false?'<span class="badge off">Inactive</span>':'<span class="badge ok">Active</span>'}</td>
-                <td><div class="row-actions">
-                  <button class="icon-btn" title="Edit" onclick="editVehicleModal('${v.id}')">✎</button>
-                  <button class="icon-btn danger" title="Delete" onclick="confirmDeleteVehicle('${v.id}')">🗑</button>
-                </div></td>
-              </tr>`).join('')}
-            </tbody></table></div>`}
+        : `
+          <div class="section-h" style="margin-top:6px;margin-bottom:6px"><h3 style="font-size:14px"><i class="ti ti-truck" style="vertical-align:-2px;margin-right:4px"></i>Vehicles</h3><span class="sub">${vehicles.length}</span></div>
+          ${tableHtml(vehicles, 'vehicle')}
+ 
+          <div class="section-h" style="margin-top:18px;margin-bottom:6px"><h3 style="font-size:14px"><i class="ti ti-settings" style="vertical-align:-2px;margin-right:4px"></i>Machines</h3><span class="sub">${machines.length}</span></div>
+          ${tableHtml(machines, 'machine')}
+        `}
     </div>
   `;
 }
@@ -2686,7 +2798,7 @@ function renderExport(page){
         <select id="ex-mgr"><option value="">All managers</option>${state.managers.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}</select>
       </div>
       <div class="form-row"><label>Vehicle (optional)</label>
-        <select id="ex-veh"><option value="">All vehicles</option>${state.vehicles.map(v=>`<option value="${v.id}">${escapeHtml(v.name)}</option>`).join('')}</select>
+        <select id="ex-veh"><option value="">All vehicles</option>${state.vehicles.slice().sort((a,b)=>(a.reg_no||a.name||'').localeCompare(b.reg_no||b.name||'')).map(v=>`<option value="${v.id}">${escapeHtml(v.reg_no || v.name || '—')}${v.branch?' · '+escapeHtml(v.branch):''}${v.name && v.name!==v.reg_no ? ' ('+escapeHtml(v.name)+')' : ''}</option>`).join('')}</select>
       </div>
       <button class="btn" style="width:100%" onclick="doExport()">📥 Download Excel</button>
       <p style="font-size:11px;color:var(--text-muted);margin-top:10px">Includes all built-in and custom fields. Edit history is exported as a separate sheet.</p>
@@ -2844,7 +2956,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v3.6</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v3.8</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -3332,10 +3444,11 @@ function renderMyEntries(page){
         </div>
         <div class="form-row" style="margin:0">
           <label>Vehicle</label>
-          <select id="me-veh">
-            <option value="">All vehicles</option>
-            ${usedVehicles.map(v=>`<option value="${v.id}">${escapeHtml(v.reg_no || v.name)}</option>`).join('')}
-          </select>
+          <div class="sd-wrap">
+            <input type="text" id="me-veh-text" placeholder="Type to search… (e.g. 6117 or hyva)" autocomplete="off">
+            <input type="hidden" id="me-veh">
+            <div id="me-veh-results" class="sd-results"></div>
+          </div>
         </div>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
@@ -3348,6 +3461,26 @@ function renderMyEntries(page){
       <div id="me-table">${renderEntriesTable(mine, {showManager:false, canEdit:true})}</div>
     </div>
   `;
+ 
+  // Wire the searchable vehicle picker — uses the existing wireVehicleSearch helper.
+  // Only vehicles the manager has actually fueled appear in suggestions (more useful).
+  wireVehicleSearch('me-veh-text', 'me-veh', 'me-veh-results', () => usedVehicles, null);
+ 
+  // The hidden field is set by the picker — poll for changes since it's not a native event
+  let lastMeVeh = '';
+  const meVehPoll = setInterval(() => {
+    const el = $('#me-veh'); if(!el || !document.body.contains(el)){ clearInterval(meVehPoll); return; }
+    if(el.value !== lastMeVeh){
+      lastMeVeh = el.value;
+      if(window._refilterMyEntries) window._refilterMyEntries();
+    }
+  }, 300);
+  // Also handle "Clear" — user empties the visible search input
+  $('#me-veh-text').addEventListener('input', () => {
+    if(!$('#me-veh-text').value.trim()){
+      $('#me-veh').value = '';
+    }
+  });
  
   window._refilterMyEntries = function(){
     const vid = $('#me-veh').value;
@@ -3365,7 +3498,7 @@ function renderMyEntries(page){
     const cnt = $('#me-count'); if(cnt) cnt.textContent = filtered.length + ' entries · ' + total.toFixed(1) + ' L';
     $('#me-table').innerHTML = renderEntriesTable(filtered, {showManager:false, canEdit:true});
   };
-  ['me-veh','me-from','me-to'].forEach(id=>{
+  ['me-from','me-to'].forEach(id=>{
     const el = $('#'+id); if(!el) return;
     el.addEventListener('change', window._refilterMyEntries);
   });
@@ -3380,7 +3513,11 @@ window.setMyEntriesPreset = function(p){
   if(p==='today'){ fromEl.value = fmt(today); toEl.value = fmt(today); }
   else if(p==='week'){ const d = new Date(Date.now()-7*86400000); fromEl.value = fmt(d); toEl.value = fmt(today); }
   else if(p==='month'){ const d = new Date(Date.now()-30*86400000); fromEl.value = fmt(d); toEl.value = fmt(today); }
-  else if(p==='clear'){ fromEl.value=''; toEl.value=''; }
+  else if(p==='clear'){
+    fromEl.value=''; toEl.value='';
+    const vtEl = $('#me-veh-text'); const vhEl = $('#me-veh');
+    if(vtEl) vtEl.value = ''; if(vhEl) vhEl.value = '';
+  }
   if(window._refilterMyEntries) window._refilterMyEntries();
 };
  
