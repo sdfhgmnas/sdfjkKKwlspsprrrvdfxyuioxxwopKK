@@ -7,6 +7,7 @@
  
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
 <meta name="theme-color" content="#0891b2">
 <meta name="description" content="TASR BharatNext Fuel Manager">
 <link rel="icon" type="image/png" href="favicon.png">
@@ -175,7 +176,7 @@ html{background:#000}
 .role-tab{flex:1;padding:8px 10px;font-weight:600;font-size:13px;color:var(--text-muted);border-radius:6px}
 .role-tab.active{background:#fff;color:var(--accent-dark);box-shadow:0 1px 2px rgba(0,0,0,.05)}
 .form-row{margin-bottom:12px}
-.form-row label{display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;letter-spacing:.3px;text-transform:uppercase}
+.form-row label{display:block;font-size:12px;font-weight:700;color:#3f37c9;margin-bottom:4px;letter-spacing:.3px;text-transform:uppercase}
 .form-row input,.form-row select,.form-row textarea{
   width:100%;padding:10px 12px;border:1px solid var(--border-dark);
   border-radius:var(--radius-sm);background:#fff;color:var(--text);outline:none;
@@ -256,6 +257,27 @@ table tbody tr:hover{background:var(--surface)}
 .sticky-table tbody tr:hover .sticky-1{background:var(--surface)}
 .sticky-table thead .sticky-1{background:var(--surface-2)}
  
+/* Table-wrap is its own scroll container — both X (horizontal) and Y (vertical).
+   This gives reliable sticky behavior for thead independent of page scroll. */
+.sticky-table{
+  overflow:auto;
+  max-height:70vh;
+  -webkit-overflow-scrolling:touch;
+}
+ 
+/* Sticky HEADER ROW — sticks to top of the table-wrap. Works even on mobile. */
+.sticky-table thead th{
+  position:sticky;
+  top:0;
+  z-index:4;
+  background:var(--surface-2);
+  box-shadow:0 1px 0 var(--border);
+}
+/* Top-left intersection cell (Vehicle header) — above both sticky row and sticky col */
+.sticky-table thead th.sticky-1{
+  z-index:5;
+}
+ 
 /* ===== FIELD-FILLED INDICATOR — vivid green when manager has entered a value ===== */
 .field-filled{
   background-color:#bbf7d0 !important;     /* green-200, clearly green */
@@ -274,6 +296,15 @@ table tbody tr:hover{background:var(--surface)}
   color:#16a34a;
   font-weight:800;
   font-size:12px;
+}
+/* Pill rows (Fill Type / Source): when one pill is selected, the whole row
+   gets a subtle green tint that matches text-input filled style. */
+.form-row.row-filled .source-pills{
+  background-color:#ecfdf5;
+  border:1px solid #6ee7b7;
+  border-radius:var(--radius-sm);
+  padding:4px;
+  transition:background-color .2s, border-color .2s;
 }
  
 /* ===== REFERENCE CARD on New Entry form — shows last fill of selected vehicle ===== */
@@ -379,16 +410,83 @@ body.lightbg .admin-btn{
 .bowser-meta .refill-btn:hover{background:var(--accent-dark)}
  
 /* Bowser stock banner (above source pills in new entry) */
+/* Bowser banner — visual cards with capacity bars */
 .bowser-banner{
-  display:flex;gap:10px;padding:10px 12px;background:var(--surface);
-  border-radius:var(--radius-sm);margin-bottom:6px;font-size:12px;
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;
 }
-.bowser-banner .b-item{flex:1;display:flex;flex-direction:column;align-items:center}
-.bowser-banner .b-item .lbl{color:var(--text-muted);font-weight:600;font-size:10px;letter-spacing:.4px;text-transform:uppercase}
-.bowser-banner .b-item .val{font-weight:700;font-size:15px;margin-top:2px}
+.bowser-banner .b-item{
+  background:#ecfeff;border:1px solid #67e8f9;
+  border-radius:var(--radius-sm);padding:8px 10px;
+}
+.bowser-banner .b-item .lbl{
+  font-size:10px;color:var(--accent-dark);font-weight:600;
+  letter-spacing:.4px;text-transform:uppercase;display:block;
+}
+.bowser-banner .b-item .val{font-weight:700;font-size:15px;color:#155e75;display:block;margin-top:2px}
 .bowser-banner .b-item .val.low{color:var(--danger)}
-.bowser-banner .b-item .val.mid{color:var(--warn)}
-.bowser-banner .b-item .val.ok{color:var(--success)}
+.bowser-banner .b-item .val.mid{color:#a16207}
+.bowser-banner .b-item .val.ok{color:#155e75}
+.bowser-banner .b-item .bar{height:4px;background:#cffafe;border-radius:2px;margin-top:5px;overflow:hidden}
+.bowser-banner .b-item .bar .fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+.bowser-banner .b-item .bar .fill.low{background:var(--danger)}
+.bowser-banner .b-item .bar .fill.mid{background:#f59e0b}
+ 
+/* ===== NEW FUEL ENTRY redesign — section grouping ===== */
+.form-section-label{
+  font-size:10px;font-weight:600;color:var(--text-soft);
+  text-transform:uppercase;letter-spacing:.4px;
+  margin:10px 4px 6px;
+}
+.form-section-label:first-child{margin-top:4px}
+.form-section{
+  background:#fff;border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;
+}
+.form-section .form-row:last-child{margin-bottom:0}
+ 
+/* Progress bar at top of form */
+.form-progress{
+  display:flex;align-items:center;gap:8px;margin-bottom:12px;
+  padding:10px 12px;background:#fff;border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+}
+.form-progress-bar{
+  flex:1;height:6px;background:var(--surface-2);
+  border-radius:3px;overflow:hidden;
+}
+.form-progress-fill{
+  height:100%;background:#22c55e;border-radius:3px;
+  transition:width .35s ease;
+}
+.form-progress-text{
+  font-size:11px;color:var(--text-muted);font-weight:600;
+  min-width:48px;text-align:right;
+}
+ 
+/* Pills with Tabler icons — stacked icon + label */
+.pill-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pill-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.source-pills.pill-grid-2,
+.source-pills.pill-grid-3{display:grid}
+.source-pills.pill-grid-2{grid-template-columns:1fr 1fr;gap:8px}
+.source-pills.pill-grid-3{grid-template-columns:1fr 1fr 1fr;gap:6px}
+.source-pill.pill-icon{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;padding:10px 6px;min-height:54px;
+}
+.source-pill.pill-icon i.ti{font-size:18px;line-height:1}
+ 
+/* "Set to Now" button below time inputs */
+.now-btn{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:600;
+  padding:6px 10px;margin-top:6px;
+  background:#fff;color:var(--accent-dark);
+  border:1px solid var(--border-dark);
+  border-radius:var(--radius-sm);cursor:pointer;
+}
+.now-btn:active{transform:scale(.97)}
+.now-btn i.ti{font-size:13px}
  
 .empty{text-align:center;padding:30px 20px;color:var(--text-muted);font-size:13px}
 .empty .em{font-size:30px;margin-bottom:6px}
@@ -547,10 +645,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v3.1 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v3.6 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v3.1</span>
+    <span style="opacity:.35;margin-left:6px">v3.6</span>
   </div>
 </div>
  
@@ -592,7 +690,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v3.1</span></div>
+    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v3.6</span></div>
     <span id="sync-pill" class="sync-pill sync-online"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -912,7 +1010,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v3.1] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v3.6] Calc input handlers attached at document level (click + pointerup + touchstart)');
  
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1608,12 +1706,22 @@ function renderBowserBanner(){
     if(pct < 50) return 'mid';
     return 'ok';
   }
+  function pct(stock, cap){ return cap > 0 ? Math.max(0, Math.min(100, (stock/cap)*100)) : 0; }
   const s1 = getBowserStock('t1'), c1 = getBowserCapacity('t1');
   const s2 = getBowserStock('t2'), c2 = getBowserCapacity('t2');
+  const t1 = tier(s1,c1), t2 = tier(s2,c2);
   return `
     <div class="bowser-banner">
-      <div class="b-item"><span class="lbl">Bowser T1</span><span class="val ${tier(s1,c1)}">${s1.toFixed(1)} L</span></div>
-      <div class="b-item"><span class="lbl">Bowser T2</span><span class="val ${tier(s2,c2)}">${s2.toFixed(1)} L</span></div>
+      <div class="b-item">
+        <span class="lbl">Bowser T1</span>
+        <span class="val ${t1}">${s1.toFixed(1)} L</span>
+        <div class="bar"><div class="fill ${t1}" style="width:${pct(s1,c1).toFixed(0)}%"></div></div>
+      </div>
+      <div class="b-item">
+        <span class="lbl">Bowser T2</span>
+        <span class="val ${t2}">${s2.toFixed(1)} L</span>
+        <div class="bar"><div class="fill ${t2}" style="width:${pct(s2,c2).toFixed(0)}%"></div></div>
+      </div>
     </div>
   `;
 }
@@ -1741,22 +1849,21 @@ function calcF2FConsumption(entry){
   return { value, formatted: value.toFixed(2)+' '+unit, unit, consumed, delta };
 }
  
-// Δ (Manual − GPS). Prefers F2F when available (more accurate), falls back to Partial.
+// Diff (GPS − F2F). F2F only — Partial not used as fallback per user spec.
 function calcConsDiff(entry){
+  // Diff = GPS − F2F, both in LITERS (per user spec).
+  // GPS consumption is admin-entered as litres consumed (same unit as F2F).
   const f2f = calcF2FConsumption(entry);
-  const partial = calcPartialConsumption(entry);
   const gps = (entry.consumption != null && entry.consumption !== '' && !isNaN(+entry.consumption))
     ? +entry.consumption : null;
   if(gps == null) return null;
-  const manual = (f2f && f2f.value !== undefined) ? f2f
-               : (partial && partial.value !== undefined) ? partial : null;
-  if(!manual) return null;
-  const delta = manual.value - gps;
-  const pct = gps !== 0 ? (delta / gps) * 100 : 0;
+  if(!f2f || f2f.consumed === undefined) return null;
+  const delta = gps - f2f.consumed;
+  // pct = how much GPS differs from F2F, as % of F2F (the "actual" calculated value)
+  const pct = f2f.consumed !== 0 ? (delta / f2f.consumed) * 100 : 0;
   const absPct = Math.abs(pct);
   const severity = absPct < 10 ? 'ok' : (absPct < 20 ? 'warn' : 'bad');
-  const basedOn = (f2f && f2f.value !== undefined) ? 'F2F' : 'Partial';
-  return { delta, pct, severity, manualVal: manual.value, gpsVal: gps, unit: manual.unit, basedOn };
+  return { delta, pct, severity, manualVal: f2f.consumed, gpsVal: gps, unit: 'L', basedOn: 'F2F' };
 }
  
 // Back-compat alias (some older code paths may still call calcManualConsumption)
@@ -1941,26 +2048,26 @@ function buildEntryDisplay(e){
   const f2fCell = (f2f && f2f.value !== undefined)
     ? `<b style="color:var(--accent-dark)">${f2f.consumed.toFixed(1)} L</b><br><span style="font-size:10px;color:var(--text-soft)">${f2f.value.toFixed(2)} ${unit}</span>`
     : `<span style="color:var(--text-soft);cursor:help;border-bottom:1px dotted var(--text-soft)" title="${escapeHtml(f2f && f2f.reason ? f2f.reason : 'Cannot compute')}">—</span>`;
-  // GPS Consumption — admin-entered; owner can quick-add/edit, managers see read-only
+  // GPS Consumption — admin-entered; in LITERS (matches F2F unit for direct comparison)
   let gpsCell;
   if(e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)){
     const cv = (+e.consumption).toFixed(2);
     gpsCell = isOwner
-      ? `<b style="color:var(--accent-dark)">${cv}</b> <span style="font-size:10px;color:var(--text-soft)">${unit}</span> <button class="btn xs ghost" style="font-size:10px;padding:1px 5px;margin-left:2px" onclick="setConsumptionModal('${e.id}')" title="Edit GPS consumption">✎</button>`
-      : `<b style="color:var(--accent-dark)">${cv}</b> <span style="font-size:10px;color:var(--text-soft)">${unit}</span>`;
+      ? `<b style="color:var(--accent-dark)">${cv}</b> <span style="font-size:10px;color:var(--text-soft)">L</span> <button class="btn xs ghost" style="font-size:10px;padding:1px 5px;margin-left:2px" onclick="setConsumptionModal('${e.id}')" title="Edit GPS consumption">✎</button>`
+      : `<b style="color:var(--accent-dark)">${cv}</b> <span style="font-size:10px;color:var(--text-soft)">L</span>`;
   } else {
     gpsCell = isOwner
       ? `<button class="btn xs ghost" style="font-size:11px;padding:2px 8px" onclick="setConsumptionModal('${e.id}')">+ Add</button>`
       : '<span style="color:var(--text-soft)">—</span>';
   }
-  // Δ — uses F2F when available, else Partial, against GPS
+  // Diff — GPS minus F2F. Both in LITERS. Simple subtraction.
   const diff = calcConsDiff(e);
   let diffCell = '<span style="color:var(--text-soft)">—</span>';
   if(diff){
     const color = diff.severity === 'ok' ? 'var(--success)'
                 : diff.severity === 'warn' ? '#a16207' : 'var(--danger)';
     const sign = diff.delta > 0 ? '+' : '';
-    diffCell = `<b style="color:${color}" title="Based on ${diff.basedOn} cons.">${sign}${diff.delta.toFixed(2)}</b><br><span style="font-size:10px;color:var(--text-soft)">${sign}${diff.pct.toFixed(1)}%</span>`;
+    diffCell = `<b style="color:${color}" title="GPS − F2F (Litres)">${sign}${diff.delta.toFixed(2)} L</b><br><span style="font-size:10px;color:var(--text-soft)">${sign}${diff.pct.toFixed(1)}%</span>`;
   }
   return { veh, vehDisplay, unit, src, editBadge, fillBadge, avgCell, partialCell, f2fCell, gpsCell, diffCell };
 }
@@ -2012,8 +2119,8 @@ function renderEntriesTableView(entries, opts={}){
       <th class="${sortedClass('avg')}" onclick="sortBy('avg')">Avg ${state.avgMode==='full2full'?'(F2F)':'(Trip)'} ${sortArrow('avg')}</th>
       <th class="${sortedClass('partial')}" onclick="sortBy('partial')" title="Partial Consumption — liters used between last Not-Full fill and current">Partial Cons. <span style="font-size:9px;color:var(--text-soft);font-weight:400">(L)</span> ${sortArrow('partial')}</th>
       <th class="${sortedClass('f2f')}" onclick="sortBy('f2f')" title="F2F Consumption — total liters between two Full Tank fills">F2F Cons. <span style="font-size:9px;color:var(--text-soft);font-weight:400">(L)</span> ${sortArrow('f2f')}</th>
-      <th class="${sortedClass('gps')}" onclick="sortBy('gps')" title="Admin-entered consumption (from GPS / telematics)">GPS Cons. ${sortArrow('gps')}</th>
-      <th title="Manual − GPS difference (uses F2F when available, else Partial)">Δ</th>
+      <th class="${sortedClass('gps')}" onclick="sortBy('gps')" title="Admin-entered consumption from GPS / telematics, in litres">GPS Cons. <span style="font-size:9px;color:var(--text-soft);font-weight:400">(L)</span> ${sortArrow('gps')}</th>
+      <th title="GPS Consumption − F2F Consumption (Litres)">Diff <span style="font-size:9px;color:var(--text-soft);font-weight:400">(L)</span></th>
       <th class="${sortedClass('source')}" onclick="sortBy('source')">Source ${sortArrow('source')}</th>
       ${state.customFields.map(f=>`<th>${escapeHtml(f.field_label)}</th>`).join('')}
       <th></th>
@@ -2051,8 +2158,8 @@ function renderEntriesCardsView(entries, opts={}){
           <div class="lbl">Avg ${state.avgMode==='full2full'?'(F2F)':'(Trip)'}</div><div class="val">${d.avgCell}</div>
           <div class="lbl">Partial Cons (L)</div><div class="val">${d.partialCell}</div>
           <div class="lbl">F2F Cons (L)</div><div class="val">${d.f2fCell}</div>
-          <div class="lbl">GPS Cons</div><div class="val">${d.gpsCell}</div>
-          <div class="lbl">Δ Manual − GPS</div><div class="val">${d.diffCell}</div>
+          <div class="lbl">GPS Cons (L)</div><div class="val">${d.gpsCell}</div>
+          <div class="lbl">Diff (GPS − F2F) L</div><div class="val">${d.diffCell}</div>
           ${customRows}
         </div>
         ${canEdit?`<div class="entry-card-actions">
@@ -2619,9 +2726,9 @@ window.doExport = function(){
       'Partial Avg':             (function(){ const m = calcPartialConsumption(e); return (m && m.value !== undefined) ? +m.value.toFixed(3) + ' ' + m.unit : ''; })(),
       'F2F Cons. (L)':           (function(){ const m = calcF2FConsumption(e); return (m && m.consumed !== undefined) ? +m.consumed.toFixed(2) : ''; })(),
       'F2F Avg':                 (function(){ const m = calcF2FConsumption(e); return (m && m.value !== undefined) ? +m.value.toFixed(3) + ' ' + m.unit : ''; })(),
-      'GPS Consumption (Admin)': (e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)) ? (+e.consumption) : '',
-      'Δ Manual − GPS': (function(){ const d = calcConsDiff(e); return d ? +d.delta.toFixed(3) : ''; })(),
-      'Δ %': (function(){ const d = calcConsDiff(e); return d ? +d.pct.toFixed(2) : ''; })(),
+      'GPS Cons. (L)':           (e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)) ? (+e.consumption) : '',
+      'Diff (GPS − F2F) L': (function(){ const d = calcConsDiff(e); return d ? +d.delta.toFixed(3) : ''; })(),
+      'Diff %': (function(){ const d = calcConsDiff(e); return d ? +d.pct.toFixed(2) : ''; })(),
       'Source':e.source==='other'?(e.source_custom||'Other'):(e.source==='bowser_t1'?'Bowser T1':(e.source==='bowser_t2'?'Bowser T2':e.source||'')),
       'Edit Count':e.edit_count||0,
       'Last Edited':e.edited_at?fmtDT(e.edited_at):'',
@@ -2737,7 +2844,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v3.1</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v3.6</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -2777,72 +2884,101 @@ window.wipeLocalCache = function(){
 // ---------- MANAGER: NEW ENTRY ----------
 function renderNewEntry(page){
   const activeVehicles = state.vehicles.filter(v=>v.active!==false);
-  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const now = new Date();
+  const tzOffset = now.getTimezoneOffset() * 60000;
+  const localISO = new Date(now.getTime() - tzOffset).toISOString();
+  const nowDate = localISO.slice(0,10);   // YYYY-MM-DD
+  const nowTime = localISO.slice(11,16);  // HH:MM
   page.innerHTML = `
-    <div class="section">
-      <div class="section-h"><h3>New Fuel Entry</h3><span class="sub">${state.user.name}</span></div>
+    <div class="section" style="padding:14px">
+      <div class="section-h" style="margin-bottom:10px"><h3>New Fuel Entry</h3><span class="sub">${state.user.name}</span></div>
  
-      <div class="form-row sd-wrap">
-        <label>Vehicle / Machine *</label>
-        <input type="text" id="ne-vehicle" placeholder="${activeVehicles.length===0 ? 'No vehicles yet — ask owner to add' : 'Search by reg number, type, or name…'}" autocomplete="off" ${activeVehicles.length===0?'disabled':''}>
-        <input type="hidden" id="ne-vehicle-id">
-        <div id="ne-vehicle-results" class="sd-results"></div>
-        <div class="hint">${activeVehicles.length} vehicle${activeVehicles.length===1?'':'s'} available</div>
+      <!-- Live progress bar showing how many required fields are filled -->
+      <div class="form-progress">
+        <div class="form-progress-bar"><div class="form-progress-fill" id="ne-progress-fill" style="width:0%"></div></div>
+        <div class="form-progress-text" id="ne-progress-text">0 / 0</div>
       </div>
  
-      <!-- Reference card showing the last fill of the selected vehicle, of the selected fill-type -->
-      <div id="ne-last-fill-ref" style="display:none"></div>
- 
-      <div class="grid grid-2">
-        <div class="form-row"><label>HMR / KM Reading *</label><input type="number" step="0.1" id="ne-hmr" placeholder="e.g. 4521.5"></div>
-        <div class="form-row"><label>Quantity (Litres) *</label><input type="number" step="0.1" id="ne-qty" placeholder="e.g. 45.0"></div>
-      </div>
- 
-      <div class="form-row">
-        <label>Fill Type *</label>
-        <div class="source-pills" id="ne-fill-pills">
-          <button type="button" class="source-pill active" data-fill="full">Full Tank</button>
-          <button type="button" class="source-pill" data-fill="not_full">Not Full</button>
+      <div class="form-section-label">Vehicle</div>
+      <div class="form-section">
+        <div class="form-row sd-wrap" style="margin-bottom:0">
+          <label>Vehicle / Machine *</label>
+          <input type="text" id="ne-vehicle" placeholder="${activeVehicles.length===0 ? 'No vehicles yet — ask owner to add' : 'Search by reg number, type, or name…'}" autocomplete="off" ${activeVehicles.length===0?'disabled':''}>
+          <input type="hidden" id="ne-vehicle-id">
+          <div id="ne-vehicle-results" class="sd-results"></div>
+          <div class="hint">${activeVehicles.length} vehicle${activeVehicles.length===1?'':'s'} available</div>
         </div>
-        <div class="hint">"Full" entries are used for accurate mileage calculation</div>
+        <div id="ne-last-fill-ref" style="display:none;margin-top:10px"></div>
       </div>
  
-      <div class="form-row">
-        <label>Vehicle Stock <span style="color:var(--text-soft);text-transform:none;font-weight:400;letter-spacing:0">(Angul Naap)</span></label>
-        <input type="number" step="0.1" id="ne-stock" placeholder="Dipstick reading of the vehicle tank" inputmode="decimal">
-      </div>
- 
-      <div class="form-row">
-        <label>Time of fill *</label>
-        <input type="datetime-local" id="ne-time" value="${nowLocal}">
-      </div>
- 
-      <div class="form-row">
-        <label>Source * <span style="color:var(--text-soft);text-transform:none;font-weight:400;letter-spacing:0">— live stock</span></label>
-        ${renderBowserBanner()}
-        <div class="source-pills" style="margin-top:8px">
-          <button type="button" class="source-pill active" data-src="bowser_t1">Bowser T1</button>
-          <button type="button" class="source-pill" data-src="bowser_t2">Bowser T2</button>
-          <button type="button" class="source-pill" data-src="other">Other</button>
+      <div class="form-section-label">Fuel</div>
+      <div class="form-section">
+        <div class="grid grid-2">
+          <div class="form-row"><label>HMR / KM *</label><input type="number" step="0.1" id="ne-hmr" placeholder="e.g. 4521.5" inputmode="decimal"></div>
+          <div class="form-row"><label>Quantity (L) *</label><input type="number" step="0.1" id="ne-qty" placeholder="e.g. 45.0" inputmode="decimal"></div>
         </div>
-        <input type="text" id="ne-src-custom" placeholder="Specify source" style="margin-top:8px;display:none;width:100%;padding:10px 12px;border:1px solid var(--border-dark);border-radius:var(--radius-sm)">
-      </div>
  
-      ${state.customFields.map(f=>`
         <div class="form-row">
-          <label>${escapeHtml(f.field_label)} ${f.required?'*':''}</label>
-          <input type="${f.field_type==='number'?'number':f.field_type==='date'?'date':'text'}" id="ne-cf-${f.id}" data-key="${f.field_key}" ${f.required?'data-req="1"':''}>
+          <label>Fill Type *</label>
+          <div class="source-pills pill-grid-2" id="ne-fill-pills">
+            <button type="button" class="source-pill pill-icon" data-fill="full"><i class="ti ti-circle-check"></i>Full Tank</button>
+            <button type="button" class="source-pill pill-icon" data-fill="not_full"><i class="ti ti-circle-dashed"></i>Not Full</button>
+          </div>
+          <div class="hint">"Full" entries are used for accurate mileage</div>
         </div>
-      `).join('')}
  
-      <button class="btn" style="width:100%;padding:12px" onclick="saveNewEntry()">⛽ Save Entry</button>
+        <div class="form-row" style="margin-bottom:0">
+          <label>Vehicle Stock <span style="color:var(--text-soft);text-transform:none;font-weight:400;letter-spacing:0">(Angul Naap)</span></label>
+          <input type="number" step="0.1" id="ne-stock" placeholder="Dipstick reading of the vehicle tank" inputmode="decimal">
+        </div>
+      </div>
+ 
+      <div class="form-section-label">Source</div>
+      <div class="form-section">
+        ${renderBowserBanner()}
+        <div class="form-row" style="margin-bottom:0">
+          <label>Pick Source *</label>
+          <div class="source-pills pill-grid-3" id="ne-src-pills">
+            <button type="button" class="source-pill pill-icon" data-src="bowser_t1"><i class="ti ti-gas-station"></i>Bowser T1</button>
+            <button type="button" class="source-pill pill-icon" data-src="bowser_t2"><i class="ti ti-gas-station"></i>Bowser T2</button>
+            <button type="button" class="source-pill pill-icon" data-src="other"><i class="ti ti-dots"></i>Other</button>
+          </div>
+          <input type="text" id="ne-src-custom" placeholder="Specify source" style="margin-top:8px;display:none;width:100%;padding:10px 12px;border:1px solid var(--border-dark);border-radius:var(--radius-sm)">
+        </div>
+      </div>
+ 
+      <div class="form-section-label">Time</div>
+      <div class="form-section">
+        <div class="form-row" style="margin-bottom:0">
+          <label>Time of fill *</label>
+          <div class="grid grid-2" style="gap:8px">
+            <input type="date" id="ne-date" value="${nowDate}">
+            <input type="time" id="ne-time" value="${nowTime}">
+          </div>
+          <button type="button" class="now-btn" onclick="setTimeNow()"><i class="ti ti-clock"></i> Set to Now</button>
+        </div>
+      </div>
+ 
+      ${state.customFields.length ? `
+        <div class="form-section-label">Other Info</div>
+        <div class="form-section">
+          ${state.customFields.map((f, i)=>`
+            <div class="form-row" ${i === state.customFields.length-1 ? 'style="margin-bottom:0"' : ''}>
+              <label>${escapeHtml(f.field_label)} ${f.required?'*':''}</label>
+              <input type="${f.field_type==='number'?'number':f.field_type==='date'?'date':'text'}" id="ne-cf-${f.id}" data-key="${f.field_key}" ${f.required?'data-req="1"':''} ${f.field_type==='number'?'inputmode="decimal"':''}>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+ 
+      <button class="btn" style="width:100%;padding:13px;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px" onclick="saveNewEntry()"><i class="ti ti-check"></i> Save Entry</button>
     </div>
   `;
  
   // ===== Fill-state indicator — light green tint on filled fields =====
   function setupFillIndicator(){
     // All input/select fields in the New Entry form
-    const fieldIds = ['ne-vehicle', 'ne-hmr', 'ne-qty', 'ne-stock', 'ne-time', 'ne-src-custom'];
+    const fieldIds = ['ne-vehicle', 'ne-hmr', 'ne-qty', 'ne-date', 'ne-time', 'ne-stock', 'ne-src-custom'];
     state.customFields.forEach(f => fieldIds.push('ne-cf-' + f.id));
  
     function updateOne(id){
@@ -2854,6 +2990,46 @@ function renderNewEntry(page){
       // Also mark the parent form-row so its label can show a ✓
       const row = el.closest('.form-row');
       if(row) row.classList.toggle('row-filled', filled);
+      updateProgress();
+    }
+ 
+    // Required field IDs for progress calc + pill groups + vehicle id (hidden)
+    // Vehicle hidden field is checked via #ne-vehicle-id (not by the visible #ne-vehicle text)
+    const requiredKeys = ['vehicle', 'hmr', 'qty', 'fill', 'stock-or-skip', 'date', 'time', 'src'];
+    // stock is technically optional but useful for tracking; we count it as "filled-when-typed"
+    // To keep progress meaningful for managers, count: vehicle, hmr, qty, fill, date, time, source
+    state.customFields.filter(f => f.required).forEach(f => requiredKeys.push('cf-' + f.id));
+ 
+    function isFilled(key){
+      switch(key){
+        case 'vehicle': return !!(($('#ne-vehicle-id')||{}).value);
+        case 'hmr':     return !!($('#ne-hmr').value||'').trim();
+        case 'qty':     return !!($('#ne-qty').value||'').trim();
+        case 'fill':    return !!document.querySelector('#ne-fill-pills .source-pill.active');
+        case 'stock-or-skip': return true; // optional, always "ok"
+        case 'date':    return !!($('#ne-date').value||'').trim();
+        case 'time':    return !!($('#ne-time').value||'').trim();
+        case 'src':     return !!document.querySelector('#ne-src-pills .source-pill.active');
+        default:
+          if(key.startsWith('cf-')){
+            const id = key.slice(3);
+            const el = $('#ne-cf-'+id);
+            return el ? !!((el.value||'').trim()) : true;
+          }
+      }
+      return false;
+    }
+ 
+    function updateProgress(){
+      // Count fields that count toward progress (exclude the "stock-or-skip" placeholder)
+      const counted = requiredKeys.filter(k => k !== 'stock-or-skip');
+      const total = counted.length;
+      const done = counted.filter(isFilled).length;
+      const pct = total > 0 ? (done/total)*100 : 0;
+      const fillEl = $('#ne-progress-fill');
+      const txtEl = $('#ne-progress-text');
+      if(fillEl) fillEl.style.width = pct.toFixed(0) + '%';
+      if(txtEl)  txtEl.textContent = done + ' / ' + total;
     }
  
     fieldIds.forEach(id => {
@@ -2864,14 +3040,24 @@ function renderNewEntry(page){
       el.addEventListener('change', () => updateOne(id));
     });
  
-    // Source pills + Fill Type pills — pre-selected by default, so always "set".
-    // Just mark their containing rows as filled (label gets ✓).
-    document.querySelectorAll('#ne-fill-pills, .source-pills').forEach(el => {
-      const row = el.closest('.form-row');
-      if(row) row.classList.add('row-filled');
-    });
+    // Pill rows (Fill Type + Source) — NOT pre-filled. Will turn green only
+    // when user actively picks a pill (handled in click handlers below).
+ 
+    // Expose progress updater for pill handlers to call
+    window._neUpdateProgress = updateProgress;
+    updateProgress(); // initial
   }
   setupFillIndicator();
+ 
+  // Helper: re-evaluate whether a pill-row has an active selection
+  function refreshPillRowFilled(pillsSelector){
+    const container = document.querySelector(pillsSelector);
+    if(!container) return;
+    const row = container.closest('.form-row');
+    if(!row) return;
+    const hasActive = !!container.querySelector('.source-pill.active');
+    row.classList.toggle('row-filled', hasActive);
+  }
  
   wireVehicleSearch('ne-vehicle', 'ne-vehicle-id', 'ne-vehicle-results',
     () => state.vehicles.filter(v=>v.active!==false), null);
@@ -2879,7 +3065,14 @@ function renderNewEntry(page){
   // Helper: render reference card for last fill of selected vehicle + fill type
   function updateLastFillRef(){
     const vehId = ($('#ne-vehicle-id')||{}).value || '';
-    const fillType = (document.querySelector('#ne-fill-pills .source-pill.active')||{}).dataset?.fill || 'full';
+    const fillEl = document.querySelector('#ne-fill-pills .source-pill.active');
+    if(!fillEl){
+      // No fill type selected yet — hide ref card
+      const refEl = $('#ne-last-fill-ref');
+      if(refEl){ refEl.style.display='none'; refEl.innerHTML=''; }
+      return;
+    }
+    const fillType = fillEl.dataset.fill;
     const refEl = $('#ne-last-fill-ref');
     if(!refEl) return;
     if(!vehId){ refEl.style.display='none'; refEl.innerHTML=''; return; }
@@ -2911,24 +3104,31 @@ function renderNewEntry(page){
       </div>`;
   }
  
-  // source pill toggle
-  page.querySelectorAll('.source-pills .source-pill[data-src]').forEach(p=>p.addEventListener('click', ()=>{
-    page.querySelectorAll('.source-pills .source-pill[data-src]').forEach(x=>x.classList.remove('active'));
+  // source pill toggle — also marks the row as filled (green)
+  page.querySelectorAll('#ne-src-pills .source-pill').forEach(p=>p.addEventListener('click', ()=>{
+    page.querySelectorAll('#ne-src-pills .source-pill').forEach(x=>x.classList.remove('active'));
     p.classList.add('active');
     $('#ne-src-custom').style.display = p.dataset.src==='other' ? '' : 'none';
+    refreshPillRowFilled('#ne-src-pills');
+    if(window._neUpdateProgress) window._neUpdateProgress();
   }));
-  // fill-type pill toggle (also refreshes the reference card)
+  // fill-type pill toggle (also refreshes ref card + green row)
   page.querySelectorAll('#ne-fill-pills .source-pill').forEach(p=>p.addEventListener('click', ()=>{
     page.querySelectorAll('#ne-fill-pills .source-pill').forEach(x=>x.classList.remove('active'));
     p.classList.add('active');
+    refreshPillRowFilled('#ne-fill-pills');
     updateLastFillRef();
+    if(window._neUpdateProgress) window._neUpdateProgress();
   }));
  
   // Watch vehicle hidden field for changes (wireVehicleSearch updates it on selection)
   const vehHidden = $('#ne-vehicle-id');
   if(vehHidden){
     // MutationObserver on the value (input event doesn't fire on hidden fields set by script)
-    const obs = new MutationObserver(updateLastFillRef);
+    const obs = new MutationObserver(() => {
+      updateLastFillRef();
+      if(window._neUpdateProgress) window._neUpdateProgress();
+    });
     obs.observe(vehHidden, { attributes: true, attributeFilter: ['value'] });
     // Also poll because the search dropdown sets `.value` directly (not as an attribute)
     let lastVehId = '';
@@ -2937,10 +3137,22 @@ function renderNewEntry(page){
       if(vehHidden.value !== lastVehId){
         lastVehId = vehHidden.value;
         updateLastFillRef();
+        if(window._neUpdateProgress) window._neUpdateProgress();
       }
     }, 400);
   }
 }
+ 
+// "Set to Now" button — fills date + time inputs with current local moment
+window.setTimeNow = function(){
+  const now = new Date();
+  const tzOffset = now.getTimezoneOffset() * 60000;
+  const localISO = new Date(now.getTime() - tzOffset).toISOString();
+  const dEl = document.getElementById('ne-date');
+  const tEl = document.getElementById('ne-time');
+  if(dEl){ dEl.value = localISO.slice(0,10); dEl.dispatchEvent(new Event('change', {bubbles:true})); }
+  if(tEl){ tEl.value = localISO.slice(11,16); tEl.dispatchEvent(new Event('change', {bubbles:true})); }
+};
  
 // Reusable searchable vehicle picker — `vehiclesOrGetter` may be an array OR a
 // function returning a fresh array (so the dropdown stays current even when the
@@ -3028,10 +3240,21 @@ window.saveNewEntry = function(){
   const qty = parseFloat($('#ne-qty').value);
   if(isNaN(hmr)){ toast('HMR required','err'); return; }
   if(isNaN(qty) || qty<=0){ toast('Quantity required','err'); return; }
-  const time = $('#ne-time').value;
-  if(!time){ toast('Time required','err'); return; }
-  const srcEl = document.querySelector('.source-pill.active');
-  const src = srcEl ? srcEl.dataset.src : 'bowser_t1';
+  const dateStr = ($('#ne-date').value||'').trim();
+  const timeStr = ($('#ne-time').value||'').trim();
+  if(!dateStr){ toast('Date required','err'); return; }
+  if(!timeStr){ toast('Time required','err'); return; }
+  const dt = new Date(`${dateStr}T${timeStr}`);
+  if(isNaN(dt.getTime())){ toast('Invalid date/time','err'); return; }
+  const time = dt.toISOString();
+  // Fill Type required (no default selection anymore)
+  const fillEl = document.querySelector('#ne-fill-pills .source-pill.active');
+  if(!fillEl){ toast('Select Fill Type (Full or Not Full)','err'); return; }
+  const fillType = fillEl.dataset.fill;
+  // Source required (no default selection anymore)
+  const srcEl = document.querySelector('#ne-src-pills .source-pill.active');
+  if(!srcEl){ toast('Select Source (Bowser T1, T2 or Other)','err'); return; }
+  const src = srcEl.dataset.src;
   const srcCustom = src==='other' ? $('#ne-src-custom').value.trim() : '';
   if(src==='other' && !srcCustom){ toast('Specify "Other" source','err'); return; }
  
@@ -3056,9 +3279,9 @@ window.saveNewEntry = function(){
   addEntry({
     manager_id: state.user.id, manager_name: state.user.name,
     vehicle_id: veh.id, vehicle_name: veh.reg_no || veh.name,
-    hmr, quantity:qty, fill_time:new Date(time).toISOString(),
+    hmr, quantity:qty, fill_time:time,
     source: src, source_custom: srcCustom, custom_data,
-    fill_type: (document.querySelector('#ne-fill-pills .source-pill.active')||{}).dataset?.fill || 'full',
+    fill_type: fillType,
     stock: parseFloat($('#ne-stock').value) || null,
   });
   toast('Entry saved'+(state.online?' & syncing':' (offline)'),'ok');
@@ -3344,7 +3567,7 @@ window.adminAddEntryModal = function(){
     <div class="form-row">
       <label>Fill Type *</label>
       <div class="source-pills" id="ae-fill-pills">
-        <button type="button" class="source-pill active" data-fill="full">Full Tank</button>
+        <button type="button" class="source-pill" data-fill="full">Full Tank</button>
         <button type="button" class="source-pill" data-fill="not_full">Not Full</button>
       </div>
     </div>
@@ -3355,7 +3578,7 @@ window.adminAddEntryModal = function(){
     <div class="form-row">
       <label>Source *</label>
       <div class="source-pills" id="ae-src-pills">
-        <button type="button" class="source-pill active" data-src="bowser_t1">Bowser T1</button>
+        <button type="button" class="source-pill" data-src="bowser_t1">Bowser T1</button>
         <button type="button" class="source-pill" data-src="bowser_t2">Bowser T2</button>
         <button type="button" class="source-pill" data-src="other">Other</button>
       </div>
@@ -3376,15 +3599,22 @@ window.adminAddEntryModal = function(){
  
   // wire pill toggles
   setTimeout(() => {
+    function aeRefreshRow(selector){
+      const c = document.querySelector(selector); if(!c) return;
+      const row = c.closest('.form-row'); if(!row) return;
+      row.classList.toggle('row-filled', !!c.querySelector('.source-pill.active'));
+    }
     document.querySelectorAll('#ae-src-pills .source-pill').forEach(p=>p.addEventListener('click', ()=>{
       document.querySelectorAll('#ae-src-pills .source-pill').forEach(x=>x.classList.remove('active'));
       p.classList.add('active');
       const customEl = document.getElementById('ae-src-custom');
       if(customEl) customEl.style.display = p.dataset.src==='other' ? '' : 'none';
+      aeRefreshRow('#ae-src-pills');
     }));
     document.querySelectorAll('#ae-fill-pills .source-pill').forEach(p=>p.addEventListener('click', ()=>{
       document.querySelectorAll('#ae-fill-pills .source-pill').forEach(x=>x.classList.remove('active'));
       p.classList.add('active');
+      aeRefreshRow('#ae-fill-pills');
     }));
   }, 50);
 };
@@ -3414,9 +3644,11 @@ window.adminSaveEntry = function(){
  
   const stockVal = parseFloat($('#ae-stock').value);
   const sourceEl = document.querySelector('#ae-src-pills .source-pill.active');
-  const source = sourceEl ? sourceEl.dataset.src : 'bowser_t1';
+  if(!sourceEl){ toast('Select Source','err'); return; }
+  const source = sourceEl.dataset.src;
   const fillEl = document.querySelector('#ae-fill-pills .source-pill.active');
-  const fillType = fillEl ? fillEl.dataset.fill : 'full';
+  if(!fillEl){ toast('Select Fill Type','err'); return; }
+  const fillType = fillEl.dataset.fill;
  
   const customData = {};
   state.customFields.forEach(f => {
@@ -3452,8 +3684,6 @@ window.setConsumptionModal = function(id){
   if(!state.user || state.user.role !== 'owner'){ toast('Only Admin can set GPS consumption','err'); return; }
   const e = state.entries.find(x=>x.id===id); if(!e) return;
   const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
-  const isMachine = veh && veh.type === 'machine';
-  const unit = isMachine ? 'L/hr' : 'km/L';
   const vehDisplay = veh ? (veh.reg_no || veh.name) : (e.vehicle_name || '—');
   const currentVal = (e.consumption != null && e.consumption !== '') ? (+e.consumption).toString() : '';
  
@@ -3463,9 +3693,9 @@ window.setConsumptionModal = function(id){
       <div style="color:var(--text-muted);margin-top:2px">${(+e.quantity||0).toFixed(1)} L issued · HMR ${e.hmr||'—'}</div>
     </div>
     <div class="form-row">
-      <label>GPS Consumption value <span style="color:var(--text-soft);font-weight:400">(${unit})</span></label>
-      <input type="number" step="0.01" id="cons-val" value="${escapeHtml(currentVal)}" placeholder="e.g. ${isMachine?'4.5':'8.2'}" inputmode="decimal" autofocus>
-      <div class="hint">Reading from GPS / telematics system. Visible to all managers. Leave blank and save to clear.</div>
+      <label>GPS Consumption <span style="color:var(--text-soft);font-weight:400">(litres)</span></label>
+      <input type="number" step="0.01" id="cons-val" value="${escapeHtml(currentVal)}" placeholder="e.g. 10.4" inputmode="decimal" autofocus>
+      <div class="hint">Total litres consumed per GPS / telematics reading. Same unit as F2F Cons. for direct comparison. Leave blank and save to clear.</div>
     </div>
     <div style="display:flex;gap:8px">
       ${currentVal ? `<button class="btn ghost" style="flex:1" onclick="saveConsumption('${id}', true)">Clear</button>` : ''}
