@@ -656,10 +656,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v3.8 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v4.0 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v3.8</span>
+    <span style="opacity:.35;margin-left:6px">v4.0</span>
   </div>
 </div>
  
@@ -701,7 +701,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v3.8</span></div>
+    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v4.0</span></div>
     <span id="sync-pill" class="sync-pill sync-online"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1021,7 +1021,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v3.8] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v4.0] Calc input handlers attached at document level (click + pointerup + touchstart)');
  
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1368,7 +1368,29 @@ async function pullAll(){
       sb.from('entries').select('*').order('fill_time',{ascending:false}).limit(2000),
       sb.from('settings').select('*'),
     ]);
-    if(!veh.error) state.vehicles = veh.data||[];
+ 
+    // Helper: merge a freshly-pulled remote list with any locally-pending (unsynced)
+    // rows so that records still waiting in the outbox do NOT vanish on refresh.
+    function mergeWithPending(remoteList, table, localList){
+      const pendingUpsertIds = new Set(
+        state.pendingOps
+          .filter(op => op.table === table && (op.action === 'upsert' || op.action === 'insert'))
+          .map(op => op.data && op.data.id).filter(Boolean)
+      );
+      const pendingDeleteIds = new Set(
+        state.pendingOps
+          .filter(op => op.table === table && op.action === 'delete')
+          .map(op => op.match && op.match.id).filter(Boolean)
+      );
+      // Local versions of rows still pending an upsert (authoritative until synced)
+      const localPending = (localList||[]).filter(r => pendingUpsertIds.has(r.id));
+      // Remote base, minus rows that are pending-deleted or will be replaced by local pending
+      const merged = (remoteList||[]).filter(r => !pendingDeleteIds.has(r.id) && !pendingUpsertIds.has(r.id));
+      merged.push(...localPending);
+      return merged;
+    }
+ 
+    if(!veh.error) state.vehicles = mergeWithPending(veh.data, 'vehicles', state.vehicles);
     if(!mgr.error){
       // merge remote managers with local slots
       const remote = mgr.data||[];
@@ -1378,11 +1400,13 @@ async function pullAll(){
         state.managers.push(r || {id:i, name:'Manager '+i, password:'1234', active:false, updated_at:new Date().toISOString()});
       }
     }
-    if(!cf.error)  state.customFields = cf.data||[];
-    if(!ent.error) state.entries = ent.data||[];
+    if(!cf.error)  state.customFields = mergeWithPending(cf.data, 'custom_fields', state.customFields);
+    if(!ent.error) state.entries = mergeWithPending(ent.data, 'entries', state.entries);
     if(!st.error && st.data){
       st.data.forEach(r => { state.settings[r.key] = r.value; });
     }
+    // Keep entries sorted newest-first after merge
+    state.entries.sort((a,b)=> new Date(b.fill_time||b.created_at) - new Date(a.fill_time||a.created_at));
     persist();
   }catch(e){ console.warn('pull error', e); }
   finally{ state.syncing=false; _syncingStart = 0; updateSyncPill(); }
@@ -1554,11 +1578,29 @@ function isPageInputFocused(){
   return !!(pages && pages.contains(ae));
 }
  
+// True if the manager's New Entry form has ANY in-progress data.
+// Used to block auto re-renders that would wipe a half-filled form.
+// Note: ne-date / ne-time are pre-filled defaults, so they DON'T count as dirty.
+function isNewEntryDirty(){
+  if(!state.user || state.user.role !== 'manager') return false;
+  if(state.activeTab !== 'new-entry') return false;
+  const ids = ['ne-vehicle-id','ne-vehicle','ne-hmr','ne-qty','ne-stock','ne-src-custom'];
+  state.customFields.forEach(f => ids.push('ne-cf-'+f.id));
+  for(const id of ids){
+    const el = document.getElementById(id);
+    if(el && (el.value||'').toString().trim()) return true;
+  }
+  if(document.querySelector('#ne-fill-pills .source-pill.active')) return true;
+  if(document.querySelector('#ne-src-pills .source-pill.active')) return true;
+  return false;
+}
+ 
 function renderDash(opts){
   opts = opts || {};
   if(!state.user) return;
-  // Auto-renders skip if user is in middle of typing on a form input
-  if(opts.auto && isPageInputFocused()){
+  // Auto-renders skip if user is typing OR has a half-filled New Entry form,
+  // so background sync never wipes in-progress data.
+  if(opts.auto && (isPageInputFocused() || isNewEntryDirty())){
     updateSyncPill();
     return;
   }
@@ -2956,7 +2998,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v3.8</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v4.0</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
