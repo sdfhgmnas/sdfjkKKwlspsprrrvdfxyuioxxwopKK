@@ -246,12 +246,18 @@ table tbody tr:hover{background:var(--surface)}
 .sticky-table thead th.sorted .sort-arr{opacity:1;color:var(--accent-dark)}
 .sticky-table tbody tr:hover td{background:var(--surface)}
  
-/* Sticky-1 = Vehicle column (frozen on horizontal scroll). Only column frozen. */
+/* Sticky-1 = Vehicle column (frozen on horizontal scroll). Only column frozen.
+   Text wraps onto multiple lines so long vehicle names don't bleed into the next column.
+   Calibri font (with cross-platform fallbacks) per user preference. */
 .sticky-table .sticky-1{
   position:sticky;left:0;z-index:3;
-  min-width:120px;max-width:140px;
+  min-width:120px;max-width:160px;
   box-shadow:2px 0 4px rgba(0,0,0,.08);
   font-weight:600;
+  white-space:normal;          /* allow line wrap */
+  word-break:break-word;       /* break long words if needed */
+  line-height:1.25;
+  font-family:'Calibri','Carlito','Segoe UI',system-ui,-apple-system,sans-serif;
 }
 /* Frozen col remains visible on hover */
 .sticky-table tbody tr:hover .sticky-1{background:var(--surface)}
@@ -347,7 +353,7 @@ table tbody tr:hover{background:var(--surface)}
   display:flex;justify-content:space-between;align-items:baseline;
   margin-bottom:6px;gap:8px;
 }
-.entry-card-h .veh{font-weight:700;font-size:14px;color:var(--text)}
+.entry-card-h .veh{font-weight:700;font-size:14px;color:var(--text);font-family:'Calibri','Carlito','Segoe UI',system-ui,-apple-system,sans-serif}
 .entry-card-h .time{font-size:11px;color:var(--text-muted);white-space:nowrap}
 .entry-card-meta{font-size:12px;color:var(--text-muted);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--surface-2)}
 .entry-card-grid{
@@ -657,10 +663,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v4.1 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v4.7 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v4.1</span>
+    <span style="opacity:.35;margin-left:6px">v4.7</span>
   </div>
 </div>
  
@@ -702,7 +708,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v4.1</span></div>
+    <div class="brand">TASR <span class="accent">BharatNext</span> <span style="font-size:10px;color:var(--text-soft);font-weight:500">v4.7</span></div>
     <span id="sync-pill" class="sync-pill sync-online"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -757,6 +763,27 @@ const SUPABASE_URL  = 'https://ouqvyljakhiridaavzdu.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91cXZ5bGpha2hpcmlkYWF2emR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMjcyMzEsImV4cCI6MjA5NDkwMzIzMX0.zo50bE_QAX0xOadcMNo_m1zy5cqqprYkwLOeTmKo8Hg';
 const DEFAULT_SECRET = '3578';
 const DEFAULT_OWNER_PWD = '1234';
+// Fixed salt for password hashes. Visible in source, but combined with the actual
+// password makes rainbow-table attacks on common passwords much harder.
+// Increment salt suffix when rotating the hash scheme.
+const PWD_SALT = 'tasr-bn-fleet-v1-salt-7k9p';
+async function sha256Hash(input){
+  const buf = new TextEncoder().encode(PWD_SALT + (input||''));
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+// Compare an input against a stored hash. Returns true on match.
+// If no hash is configured in settings, falls back to the provided default
+// (for first-install bootstrap before any admin has set a custom password).
+async function verifyHashedSetting(settingKey, input, defaultPlain){
+  const stored = state.settings[settingKey];
+  if(stored){
+    const inputHash = await sha256Hash(input);
+    return inputHash === stored;
+  }
+  // No hash configured yet — fall back to default until admin sets one.
+  return input === defaultPlain;
+}
 const DEVICE_ID = (() => {
   let d = localStorage.getItem('tasr_device_id');
   if(!d){ d = 'dev_'+Math.random().toString(36).slice(2,10); localStorage.setItem('tasr_device_id',d); }
@@ -801,6 +828,10 @@ const state = {
   avgMode: localStorage.getItem('tasr_avg_mode') || 'trip', // 'trip' or 'full2full'
   analysisVehicleId: null,
   entrySort: { col: 'time', dir: 'desc' },  // header click toggles
+  // Filter state persisted in memory so it survives re-renders triggered by background sync.
+  // Without this, a renderDash({auto:true}) after a save resets dropdowns to defaults.
+  allEntriesFilter: { from:'', to:'', managerId:'', vehicleId:'', vehicleText:'', gpsMode:'all' },
+  myEntriesFilter:  { from:'', to:'', vehicleId:'', vehicleText:'' },
 };
  
 const LS_KEY = 'tasr_fuel_state_v1';
@@ -959,14 +990,29 @@ function calcPress(k){
   // track secret unlock — any digit pressed appends; non-digit clears
   if(/^[0-9]$/.test(k)){
     calcState.secret = (calcState.secret + k).slice(-8);
-    const code = state.settings.secret_code || DEFAULT_SECRET;
-    if(calcState.secret.endsWith(code)){
-      calcState.secret = '';
-      // Honor calculator-enabled toggle by allowing unlock always for owner;
-      // managers will fail to login if there are no active managers, but
-      // the secret-code transition itself stays available.
-      gotoLogin();
-      return;
+    // Hash-based check across candidate lengths (4-8 digits). Once admin sets a
+    // custom code via Settings, the hash is checked; the hardcoded '3578'
+    // fallback only applies until then. Async-fire-and-forget — fast.
+    const candidates = [];
+    for(let len = 4; len <= 8 && len <= calcState.secret.length; len++){
+      candidates.push(calcState.secret.slice(-len));
+    }
+    const storedHash = state.settings.secret_code_hash;
+    if(storedHash){
+      Promise.all(candidates.map(c => sha256Hash(c))).then(hashes => {
+        if(hashes.some(h => h === storedHash)){
+          calcState.secret = '';
+          gotoLogin();
+        }
+      });
+    } else {
+      // Pre-migration fallback: plain-text compare against default OR legacy settings.secret_code
+      const code = state.settings.secret_code || DEFAULT_SECRET;
+      if(calcState.secret.endsWith(code)){
+        calcState.secret = '';
+        gotoLogin();
+        return;
+      }
     }
   } else {
     calcState.secret = '';
@@ -1022,7 +1068,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v4.1] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v4.7] Calc input handlers attached at document level (click + pointerup + touchstart)');
  
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1087,7 +1133,10 @@ function setLightBg(on){
 // ============================================================
 // ADMIN (super-admin kill switch)
 // ============================================================
-const ADMIN_PASSWORD = 'Tasr@jvs.com';
+// Bootstrap fallback ONLY — used when admin_password_hash is not yet set in DB.
+// Admin should immediately go to Security panel and set a new password,
+// after which this fallback is no longer accepted.
+const ADMIN_PASSWORD_FALLBACK = 'Tasr@jvs.com';
  
 window.openAdminLogin = function(){
   openModal('🔒 Administration Access', `
@@ -1107,9 +1156,13 @@ window.openAdminLogin = function(){
   }, 100);
 };
  
-window.adminLogin = function(){
+window.adminLogin = async function(){
   const pwd = document.getElementById('adm-pwd').value;
-  if(pwd === ADMIN_PASSWORD){
+  if(!pwd){ document.getElementById('adm-login-msg').innerHTML = '<div class="msg err">Enter password</div>'; return; }
+  // Hash-based verification. Once admin sets a custom password via Security panel,
+  // only the stored hash is accepted (hardcoded fallback no longer works).
+  const ok = await verifyHashedSetting('admin_password_hash', pwd, ADMIN_PASSWORD_FALLBACK);
+  if(ok){
     openAdminPanel();
   } else {
     document.getElementById('adm-login-msg').innerHTML = '<div class="msg err">Incorrect admin password</div>';
@@ -1171,8 +1224,116 @@ window.openAdminPanel = function(){
       </div>
     </div>
  
+    <div style="background:#fef3c7;padding:14px;border-radius:8px;margin-bottom:14px;border:1px solid #fcd34d">
+      <div style="font-weight:700;margin-bottom:4px;color:#92400e">🔒 Security</div>
+      <div style="font-size:12px;color:#78350f;margin-bottom:10px">Change admin password and calculator unlock code. Both stored as one-way hashes — even with database access nobody can read them. Set these immediately on first install.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn small ghost" onclick="closeModal(); changeAdminPasswordModal()">🔑 Change Admin Password</button>
+        <button class="btn small ghost" onclick="closeModal(); changeUnlockCodeModal()">🔢 Change Unlock Code</button>
+      </div>
+      <div style="font-size:11px;color:#78350f;margin-top:8px">
+        <b>Status:</b>
+        Password ${state.settings.admin_password_hash ? '<span style="color:#059669">✓ Custom hash set</span>' : '<span style="color:#dc2626">⚠ Default (Tasr@jvs.com) — change now</span>'}
+        &nbsp;·&nbsp;
+        Unlock code ${state.settings.secret_code_hash ? '<span style="color:#059669">✓ Custom hash set</span>' : '<span style="color:#dc2626">⚠ Default (3578) — change now</span>'}
+      </div>
+    </div>
+ 
     <button class="btn" style="width:100%;margin-top:14px" onclick="saveAdminSettings()">Save Changes</button>
   `);
+};
+ 
+// ============================================================
+// SECURITY: Admin password + unlock code change modals
+// ============================================================
+window.changeAdminPasswordModal = function(){
+  openModal('🔑 Change Admin Password', `
+    <div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:10px;border-radius:6px;margin-bottom:14px;font-size:12px;color:#78350f">
+      Choose a strong password (8+ chars, mix letters/digits/symbols). Once changed, the old password stops working immediately. <b>Write it down somewhere safe</b> — there is no recovery.
+    </div>
+    <div class="form-row"><label>Current admin password</label>
+      <input type="password" id="cap-cur" autocomplete="off" placeholder="Enter current password">
+    </div>
+    <div class="form-row"><label>New password</label>
+      <input type="password" id="cap-new" autocomplete="off" placeholder="At least 8 characters">
+    </div>
+    <div class="form-row"><label>Confirm new password</label>
+      <input type="password" id="cap-new2" autocomplete="off" placeholder="Re-enter to confirm">
+    </div>
+    <div id="cap-msg"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="flex:2" onclick="saveAdminPassword()">Change Password</button>
+    </div>
+  `);
+  setTimeout(()=>{ const el = document.getElementById('cap-cur'); if(el) el.focus(); }, 80);
+};
+window.saveAdminPassword = async function(){
+  const cur = $('#cap-cur').value;
+  const nw  = $('#cap-new').value;
+  const nw2 = $('#cap-new2').value;
+  const msg = $('#cap-msg');
+  const show = (txt, cls='err') => msg.innerHTML = `<div class="msg ${cls}">${txt}</div>`;
+  if(!cur || !nw || !nw2){ show('All fields required'); return; }
+  if(nw.length < 8){ show('New password must be at least 8 characters'); return; }
+  if(nw !== nw2){ show('New passwords do not match'); return; }
+  if(nw === cur){ show('New password must be different from current'); return; }
+  // Verify current
+  const okCur = await verifyHashedSetting('admin_password_hash', cur, ADMIN_PASSWORD_FALLBACK);
+  if(!okCur){ show('Current password is incorrect'); return; }
+  // Save new hash
+  const newHash = await sha256Hash(nw);
+  updateSetting('admin_password_hash', newHash);
+  closeModal();
+  toast('Admin password updated. Use the new password next time.','ok');
+};
+ 
+window.changeUnlockCodeModal = function(){
+  openModal('🔢 Change Calculator Unlock Code', `
+    <div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:10px;border-radius:6px;margin-bottom:14px;font-size:12px;color:#78350f">
+      Code must be 4-8 digits. Type the new code anywhere in the calculator screen to unlock the login. Stored as a one-way hash — share verbally with team only.
+    </div>
+    <div class="form-row"><label>Current unlock code</label>
+      <input type="password" id="cuc-cur" autocomplete="off" inputmode="numeric" placeholder="Current code">
+    </div>
+    <div class="form-row"><label>New code (4-8 digits)</label>
+      <input type="password" id="cuc-new" autocomplete="off" inputmode="numeric" maxlength="8" placeholder="e.g. 7392">
+    </div>
+    <div class="form-row"><label>Confirm new code</label>
+      <input type="password" id="cuc-new2" autocomplete="off" inputmode="numeric" maxlength="8" placeholder="Re-enter to confirm">
+    </div>
+    <div id="cuc-msg"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="flex:2" onclick="saveUnlockCode()">Change Code</button>
+    </div>
+  `);
+  setTimeout(()=>{ const el = document.getElementById('cuc-cur'); if(el) el.focus(); }, 80);
+};
+window.saveUnlockCode = async function(){
+  const cur = $('#cuc-cur').value;
+  const nw  = $('#cuc-new').value;
+  const nw2 = $('#cuc-new2').value;
+  const msg = $('#cuc-msg');
+  const show = (txt) => msg.innerHTML = `<div class="msg err">${txt}</div>`;
+  if(!cur || !nw || !nw2){ show('All fields required'); return; }
+  if(!/^[0-9]{4,8}$/.test(nw)){ show('New code must be 4-8 digits only'); return; }
+  if(nw !== nw2){ show('New codes do not match'); return; }
+  if(nw === cur){ show('New code must be different from current'); return; }
+  // Verify current — try hash first, else legacy plain setting, else default
+  let okCur = false;
+  if(state.settings.secret_code_hash){
+    okCur = (await sha256Hash(cur)) === state.settings.secret_code_hash;
+  } else {
+    okCur = cur === (state.settings.secret_code || DEFAULT_SECRET);
+  }
+  if(!okCur){ show('Current code is incorrect'); return; }
+  // Save new hash; also clear the legacy plain setting so it stops being used
+  const newHash = await sha256Hash(nw);
+  updateSetting('secret_code_hash', newHash);
+  updateSetting('secret_code', '');   // wipe legacy plain
+  closeModal();
+  toast('Unlock code updated. Share verbally with team.','ok');
 };
  
 window.saveAdminSettings = function(){
@@ -1847,7 +2008,7 @@ function calcAvg(entry, mode){
     const qty = +entry.quantity || 0;
     if(diff <= 0 || qty <= 0) return null;
     const value = isMachine ? qty/diff : diff/qty;
-    return { value, formatted: value.toFixed(2)+' '+unit, meaningful: entry.fill_type==='full', mode };
+    return { value, formatted: value.toFixed(2)+' '+unit, meaningful: entry.fill_type==='full', mode, runDelta: diff, isMachine };
   }
  
   // full2full
@@ -1867,7 +2028,7 @@ function calcAvg(entry, mode){
   const diff = (+entry.hmr || 0) - (+prevFull.hmr || 0);
   if(diff <= 0 || totalQty <= 0) return null;
   const value = isMachine ? totalQty/diff : diff/totalQty;
-  return { value, formatted: value.toFixed(2)+' '+unit, meaningful: true, mode, span: between.length };
+  return { value, formatted: value.toFixed(2)+' '+unit, meaningful: true, mode, span: between.length, runDelta: diff, isMachine };
 }
  
 // PARTIAL CONSUMPTION — between last partial fill and current fill.
@@ -2121,6 +2282,11 @@ function sortedClass(col){
 function buildEntryDisplay(e){
   const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
   const vehDisplay = veh ? (veh.reg_no || veh.name) : (e.vehicle_name || '—');
+  const isGps = !!(veh && veh.gps_enabled);
+  // Pre-built HTML for the vehicle cell — GPS-enabled vehicles get green font + tiny satellite icon
+  const vehHtml = isGps
+    ? `<span style="color:#059669;font-weight:700"><i class="ti ti-satellite" style="font-size:11px;vertical-align:-1px;margin-right:2px"></i>${escapeHtml(vehDisplay)}</span>`
+    : escapeHtml(vehDisplay);
   const isMachine = veh && veh.type === 'machine';
   const unit = isMachine ? 'L/hr' : 'km/L';
   const isOwner = state.user && state.user.role === 'owner';
@@ -2132,9 +2298,22 @@ function buildEntryDisplay(e){
     ? '<span class="badge ok">Full</span>'
     : (e.fill_type === 'not_full' ? '<span class="badge warn">Partial</span>' : '—');
   const avg = calcAvg(e);
-  const avgCell = avg
-    ? `<b style="color:${avg.meaningful?'var(--success)':'var(--text-muted)'}">${avg.formatted}</b>${avg.meaningful?'':' <span style="font-size:10px;color:var(--text-soft)">~</span>'}`
-    : '—';
+  let avgCell;
+  if(avg){
+    const main = `<b style="color:${avg.meaningful?'var(--success)':'var(--text-muted)'}">${avg.formatted}</b>${avg.meaningful?'':' <span style="font-size:10px;color:var(--text-soft)">~</span>'}`;
+    // Run delta — HMR change since the previous reference fill. Shown as small subtext
+    // so admin can see at a glance how far/long the trip was, not just the rate.
+    let runLine = '';
+    if(avg.runDelta != null && avg.runDelta > 0){
+      const runUnit = avg.isMachine ? 'hrs run' : 'km run';
+      // Hours get 1 decimal (more meaningful for short machine sessions); km stays integer.
+      const runStr = avg.isMachine ? avg.runDelta.toFixed(1) : Math.round(avg.runDelta).toLocaleString();
+      runLine = `<br><span style="font-size:10px;color:var(--text-soft)">${runStr} ${runUnit}</span>`;
+    }
+    avgCell = main + runLine;
+  } else {
+    avgCell = '—';
+  }
   // Partial Consumption — LITERS consumed between last Partial fill and current.
   // Primary: liters (matches user's "consumption" definition).
   // Secondary (small): the derived rate (km/L or L/hr) for quick reference.
@@ -2168,7 +2347,7 @@ function buildEntryDisplay(e){
     const sign = diff.delta > 0 ? '+' : '';
     diffCell = `<b style="color:${color}" title="GPS − F2F (Litres)">${sign}${diff.delta.toFixed(2)} L</b><br><span style="font-size:10px;color:var(--text-soft)">${sign}${diff.pct.toFixed(1)}%</span>`;
   }
-  return { veh, vehDisplay, unit, src, editBadge, fillBadge, avgCell, partialCell, f2fCell, gpsCell, diffCell };
+  return { veh, vehDisplay, vehHtml, isGps, unit, src, editBadge, fillBadge, avgCell, partialCell, f2fCell, gpsCell, diffCell };
 }
  
 // Table view — only Vehicle (1st col) is frozen on horizontal scroll.
@@ -2185,7 +2364,7 @@ function renderEntriesTableView(entries, opts={}){
       return `<td>${escapeHtml(v||'')}</td>`;
     }).join('');
     return `<tr>
-      <td class="sticky-1"><b>${escapeHtml(d.vehDisplay)}</b></td>
+      <td class="sticky-1"><b>${d.vehHtml}</b></td>
       <td>${fmtDT(e.fill_time||e.created_at)}</td>
       ${showMgr?`<td>${escapeHtml(e.manager_name||'—')}</td>`:''}
       <td>${e.hmr??'—'}</td>
@@ -2244,7 +2423,7 @@ function renderEntriesCardsView(entries, opts={}){
     return `
       <div class="entry-card">
         <div class="entry-card-h">
-          <div class="veh">${escapeHtml(d.vehDisplay)}</div>
+          <div class="veh">${d.vehHtml}</div>
           <div class="time">${fmtDT(e.fill_time||e.created_at)}</div>
         </div>
         <div class="entry-card-meta">
@@ -2287,11 +2466,11 @@ function renderAllEntries(page){
         <div class="grid grid-2" style="margin-bottom:10px">
           <div class="form-row" style="margin:0">
             <label>From date</label>
-            <input type="date" id="filter-from">
+            <input type="date" id="filter-from" value="${escapeHtml(state.allEntriesFilter.from||'')}">
           </div>
           <div class="form-row" style="margin:0">
             <label>To date</label>
-            <input type="date" id="filter-to">
+            <input type="date" id="filter-to" value="${escapeHtml(state.allEntriesFilter.to||'')}">
           </div>
         </div>
         <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
@@ -2306,14 +2485,14 @@ function renderAllEntries(page){
             <label>Manager</label>
             <select id="filter-mgr">
               <option value="">All managers</option>
-              ${state.managers.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}
+              ${state.managers.map(m=>`<option value="${m.id}" ${String(state.allEntriesFilter.managerId)===String(m.id)?'selected':''}>${escapeHtml(m.name)}</option>`).join('')}
             </select>
           </div>
           <div class="form-row" style="margin:0">
             <label>Vehicle / Machine</label>
             <div class="sd-wrap">
-              <input type="text" id="filter-vehicle-text" placeholder="Type to search…" autocomplete="off">
-              <input type="hidden" id="filter-vehicle">
+              <input type="text" id="filter-vehicle-text" placeholder="Type to search…" autocomplete="off" value="${escapeHtml(state.allEntriesFilter.vehicleText||'')}">
+              <input type="hidden" id="filter-vehicle" value="${escapeHtml(state.allEntriesFilter.vehicleId||'')}">
               <div id="filter-vehicle-results" class="sd-results"></div>
             </div>
           </div>
@@ -2322,9 +2501,9 @@ function renderAllEntries(page){
         <div class="form-row" style="margin-bottom:0">
           <label>Show</label>
           <select id="filter-gps">
-            <option value="all">All vehicles &amp; machines</option>
-            <option value="gps">GPS enabled only</option>
-            <option value="nogps">Non-GPS only</option>
+            <option value="all"   ${state.allEntriesFilter.gpsMode==='all'?'selected':''}>All vehicles &amp; machines</option>
+            <option value="gps"   ${state.allEntriesFilter.gpsMode==='gps'?'selected':''}>GPS enabled only</option>
+            <option value="nogps" ${state.allEntriesFilter.gpsMode==='nogps'?'selected':''}>Non-GPS only</option>
           </select>
         </div>
       </div>
@@ -2338,8 +2517,12 @@ function renderAllEntries(page){
     const gpsMode = ($('#filter-gps')||{}).value || 'all';
     const mid = $('#filter-mgr').value;
     const vid = $('#filter-vehicle').value;
+    const vtxt = ($('#filter-vehicle-text')||{}).value || '';
     const fromV = $('#filter-from').value;
     const toV = $('#filter-to').value;
+    // Persist current filter selection so it survives renderDash() rebuilds
+    // triggered by background sync (e.g. after GPS consumption save).
+    state.allEntriesFilter = { from:fromV, to:toV, managerId:mid, vehicleId:vid, vehicleText:vtxt, gpsMode };
     const fromTs = fromV ? new Date(fromV+'T00:00:00').getTime() : 0;
     const toTs   = toV   ? new Date(toV+'T23:59:59').getTime()   : Number.MAX_SAFE_INTEGER;
     let list = state.entries.filter(e => {
@@ -2985,10 +3168,11 @@ function renderSettings(page){
  
     <div class="section">
       <div class="section-h"><h3>Secret Unlock Code</h3></div>
-      <div class="form-row"><label>4–8 digit code typed on calculator</label>
-        <input type="text" id="set-secret" value="${escapeHtml(state.settings.secret_code||DEFAULT_SECRET)}" maxlength="8" inputmode="numeric">
+      <div style="background:#ecfeff;border:1px solid #67e8f9;padding:12px;border-radius:8px;font-size:13px;color:var(--accent-dark)">
+        ${state.settings.secret_code_hash
+          ? '🔒 Code is stored as a one-way hash. To change it, click 🔒 (top right) → Admin Panel → Security section.'
+          : '⚠️ Currently using default code <b>3578</b>. Open 🔒 → Admin Panel → Security to set a custom hashed code.'}
       </div>
-      <button class="btn small" onclick="saveSecret()">Update Secret Code</button>
     </div>
  
     <div class="section">
@@ -3022,7 +3206,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v4.1</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v4.7</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -3502,17 +3686,17 @@ function renderMyEntries(page){
       <div class="grid grid-3" style="margin-bottom:10px">
         <div class="form-row" style="margin:0">
           <label>From date</label>
-          <input type="date" id="me-from">
+          <input type="date" id="me-from" value="${escapeHtml(state.myEntriesFilter.from||'')}">
         </div>
         <div class="form-row" style="margin:0">
           <label>To date</label>
-          <input type="date" id="me-to">
+          <input type="date" id="me-to" value="${escapeHtml(state.myEntriesFilter.to||'')}">
         </div>
         <div class="form-row" style="margin:0">
           <label>Vehicle</label>
           <div class="sd-wrap">
-            <input type="text" id="me-veh-text" placeholder="Type to search… (e.g. 6117 or hyva)" autocomplete="off">
-            <input type="hidden" id="me-veh">
+            <input type="text" id="me-veh-text" placeholder="Type to search… (e.g. 6117 or hyva)" autocomplete="off" value="${escapeHtml(state.myEntriesFilter.vehicleText||'')}">
+            <input type="hidden" id="me-veh" value="${escapeHtml(state.myEntriesFilter.vehicleId||'')}">
             <div id="me-veh-results" class="sd-results"></div>
           </div>
         </div>
@@ -3550,8 +3734,10 @@ function renderMyEntries(page){
  
   window._refilterMyEntries = function(){
     const vid = $('#me-veh').value;
+    const vtxt = ($('#me-veh-text')||{}).value || '';
     const fromV = $('#me-from').value;
     const toV = $('#me-to').value;
+    state.myEntriesFilter = { from:fromV, to:toV, vehicleId:vid, vehicleText:vtxt };
     const fromTs = fromV ? new Date(fromV+'T00:00:00').getTime() : 0;
     const toTs   = toV   ? new Date(toV+'T23:59:59').getTime()   : Number.MAX_SAFE_INTEGER;
     const filtered = mine.filter(e => {
@@ -3921,9 +4107,35 @@ window.saveConsumption = function(id, clear){
       if(isNaN(val)){ toast('Enter a valid number','err'); return; }
     }
   }
+  // Capture scroll position of the entries table so we can restore it after re-render
+  const tableEl = document.querySelector('#entries-table .sticky-table');
+  const scrollLeft = tableEl ? tableEl.scrollLeft : 0;
+  const scrollTop  = tableEl ? tableEl.scrollTop  : 0;
+  const pageScroll = window.scrollY;
+ 
   updateEntry(id, { consumption: val });
   closeModal();
-  renderDash();
+ 
+  // Re-render ONLY the entries table (not the whole dashboard) to preserve
+  // filters, search dropdown state, scroll position, etc.
+  if(window._refilterAllEntries){
+    window._refilterAllEntries();
+  } else if(window._refilterMyEntries){
+    window._refilterMyEntries();
+  } else {
+    renderDash();
+  }
+ 
+  // Restore scroll positions after the DOM updates
+  requestAnimationFrame(() => {
+    const newTableEl = document.querySelector('#entries-table .sticky-table');
+    if(newTableEl){
+      newTableEl.scrollLeft = scrollLeft;
+      newTableEl.scrollTop  = scrollTop;
+    }
+    window.scrollTo({ top: pageScroll, behavior: 'instant' });
+  });
+ 
   toast(val === null ? 'GPS Consumption cleared' : 'GPS Consumption saved','ok');
 };
  
