@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Calculator</title>
- 
+
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TB Fuel">
 <meta name="mobile-web-app-capable" content="yes">
- 
+
 <!--
   ============================================================
   TASR BharatNext — Fuel Manager
@@ -32,10 +32,10 @@
   Works fully offline; queues writes to localStorage and syncs
   when network returns. Sync status pill shows live state.
 -->
- 
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
- 
+
 <style>
 :root{
   --bg:#ffffff; --surface:#f8fafc; --surface-2:#f1f5f9;
@@ -55,7 +55,7 @@ body{
 }
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
- 
+
 /* ==================== CALCULATOR (Apple-style fullscreen) ==================== */
 html{background:#000}
 #calc-screen{
@@ -113,7 +113,7 @@ html{background:#000}
 }
 /* Ensure dashboard has its own bg over the black html */
 #dash-screen{background:var(--surface)}
- 
+
 /* ==================== APP SHELL ==================== */
 .screen{display:none;min-height:100vh}
 .screen.active{display:block}
@@ -126,7 +126,7 @@ html{background:#000}
 .topbar-spacer{flex:1}
 .who{font-size:12px;color:var(--text-muted);display:flex;flex-direction:column;align-items:flex-end;line-height:1.2}
 .who b{color:var(--text);font-size:13px}
- 
+
 .sync-pill{
   display:inline-flex;align-items:center;gap:5px;
   padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;
@@ -143,7 +143,7 @@ html{background:#000}
 .sync-online{background:#dcfce7;color:#15803d}
 .sync-syncing{background:#fef3c7;color:#a16207}
 .sync-offline{background:#fee2e2;color:#b91c1c}
- 
+
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
   padding:8px 14px;border-radius:var(--radius-sm);font-weight:600;font-size:13px;
@@ -161,7 +161,7 @@ html{background:#000}
 .btn.xs{padding:2px 8px;font-size:11px;border-radius:5px}
 .btn.icon{padding:6px 8px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
- 
+
 /* ==================== LOGIN ==================== */
 #login-screen{display:none;align-items:center;justify-content:center;padding:24px;
   background:linear-gradient(180deg,#ecfeff 0%,#f8fafc 100%);}
@@ -189,7 +189,7 @@ html{background:#000}
 .msg{padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
 .msg.err{background:#fee2e2;color:#991b1b}
 .msg.ok{background:#dcfce7;color:#166534}
- 
+
 /* ==================== DASHBOARD ==================== */
 .tabbar{
   background:#fff;border-bottom:1px solid var(--border);
@@ -201,30 +201,55 @@ html{background:#000}
   border-bottom:2px solid transparent;white-space:nowrap;
 }
 .tab.active{color:var(--accent-dark);border-bottom-color:var(--accent)}
- 
+
+/* Floating action button — shown to managers as a quick "New Entry" shortcut.
+   Pill shape with + and a short label. Stays bottom-right on mobile, respects safe-area
+   for iOS notch/home indicator. Cyan brand color. */
+.fab{
+  position:fixed;right:18px;bottom:calc(20px + env(safe-area-inset-bottom));
+  background:var(--accent);color:#fff;border:none;
+  border-radius:999px;padding:14px 20px 14px 16px;
+  font-size:14px;font-weight:700;letter-spacing:.2px;
+  display:flex;align-items:center;gap:8px;
+  box-shadow:0 6px 16px rgba(8,145,178,.4), 0 2px 4px rgba(15,23,42,.08);
+  cursor:pointer;z-index:50;
+  transition:transform .12s, box-shadow .12s, background .12s;
+  /* Mobile: large enough touch target, no tap-highlight */
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+}
+.fab:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 8px 20px rgba(8,145,178,.5)}
+.fab:active{transform:translateY(0);box-shadow:0 4px 10px rgba(8,145,178,.4)}
+.fab-plus{font-size:22px;line-height:1;font-weight:300;margin-top:-2px}
+@media(max-width:480px){
+  /* On narrow phones, hide the label so the FAB stays compact */
+  .fab-label{display:none}
+  .fab{padding:14px;width:56px;height:56px;justify-content:center}
+  .fab-plus{font-size:28px;margin-top:0}
+}
+
 .page{padding:14px;display:none;max-width:1600px;margin:0 auto}
 @media(min-width:1100px){
   /* On wide screens, give tables more room so columns don't wrap unnecessarily */
   .page{padding:18px 24px}
 }
 .page.active{display:block}
- 
+
 .section{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
 .section-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;flex-wrap:wrap}
 .section-h h3{font-size:14px;font-weight:700;letter-spacing:-.2px}
 .section-h .sub{font-size:11px;color:var(--text-muted);font-weight:500}
- 
+
 .grid{display:grid;gap:10px}
 .grid-2{grid-template-columns:repeat(2,1fr)}
 .grid-3{grid-template-columns:repeat(3,1fr)}
 @media(max-width:600px){.grid-3{grid-template-columns:1fr 1fr}.grid-2{grid-template-columns:1fr}}
- 
+
 table{width:100%;border-collapse:collapse;font-size:13px}
 table th{text-align:left;padding:8px 10px;background:var(--surface-2);font-weight:600;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--border)}
 table td{padding:8px 10px;border-bottom:1px solid var(--surface-2);vertical-align:top}
 table tbody tr:hover{background:var(--surface)}
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
- 
+
 /* ===== STICKY TABLE — frozen left cols (Time/Manager/Vehicle).
    No max-height: page scrolls naturally so admin sees ALL entries.
    Sticky thead stays "in-flow" (scrolls with container) — acceptable trade-off. ===== */
@@ -249,7 +274,7 @@ table tbody tr:hover{background:var(--surface)}
 }
 .sticky-table thead th.sorted .sort-arr{opacity:1;color:var(--accent-dark)}
 .sticky-table tbody tr:hover td{background:var(--surface)}
- 
+
 /* Sticky-1 = Vehicle column (frozen on horizontal scroll). Only column frozen.
    Text wraps onto multiple lines so long vehicle names don't bleed into the next column.
    Calibri font (with cross-platform fallbacks) per user preference. */
@@ -266,7 +291,7 @@ table tbody tr:hover{background:var(--surface)}
 /* Frozen col remains visible on hover */
 .sticky-table tbody tr:hover .sticky-1{background:var(--surface)}
 .sticky-table thead .sticky-1{background:var(--surface-2)}
- 
+
 /* Table-wrap is its own scroll container — both X (horizontal) and Y (vertical).
    This gives reliable sticky behavior for thead independent of page scroll. */
 .sticky-table{
@@ -274,7 +299,7 @@ table tbody tr:hover{background:var(--surface)}
   max-height:70vh;
   -webkit-overflow-scrolling:touch;
 }
- 
+
 /* Sticky HEADER ROW — sticks to top of the table-wrap. Works even on mobile. */
 .sticky-table thead th{
   position:sticky;
@@ -287,7 +312,7 @@ table tbody tr:hover{background:var(--surface)}
 .sticky-table thead th.sticky-1{
   z-index:5;
 }
- 
+
 /* ===== FIELD-FILLED INDICATOR — vivid green when manager has entered a value ===== */
 .field-filled{
   background-color:#bbf7d0 !important;     /* green-200, clearly green */
@@ -316,7 +341,7 @@ table tbody tr:hover{background:var(--surface)}
   padding:4px;
   transition:background-color .2s, border-color .2s;
 }
- 
+
 /* ===== REFERENCE CARD on New Entry form — shows last fill of selected vehicle ===== */
 .ref-card{
   background:linear-gradient(to right, #ecfeff, #f0f9ff);
@@ -329,7 +354,7 @@ table tbody tr:hover{background:var(--surface)}
 .ref-card-meta{font-size:11px;color:var(--text-muted);margin-bottom:6px}
 .ref-card-data{display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
 .ref-card-data .lbl{color:var(--text-muted);font-size:10px;margin-right:2px}
- 
+
 /* ===== VIEW TOGGLE PILLS (Table / Cards) ===== */
 .view-toggle{
   display:inline-flex;gap:3px;margin-bottom:10px;
@@ -343,7 +368,7 @@ table tbody tr:hover{background:var(--surface)}
 }
 .view-toggle .vt:hover{color:var(--text)}
 .view-toggle .vt.active{background:#fff;color:var(--accent-dark);box-shadow:0 1px 2px rgba(0,0,0,.08)}
- 
+
 /* ===== CARDS VIEW — stacked per-entry cards, no horizontal scroll needed ===== */
 .entry-cards{
   display:grid;gap:10px;
@@ -369,12 +394,12 @@ table tbody tr:hover{background:var(--surface)}
   margin-top:10px;padding-top:8px;border-top:1px solid var(--surface-2);
   display:flex;gap:6px;justify-content:flex-end;
 }
- 
+
 .kpi{background:linear-gradient(135deg,#ecfeff 0%,#cffafe 100%);border:1px solid #a5f3fc;border-radius:var(--radius);padding:12px}
 .kpi .lbl{font-size:11px;color:var(--accent-dark);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
 .kpi .val{font-size:22px;font-weight:700;color:var(--text);margin-top:2px}
 .kpi .sub{font-size:11px;color:var(--text-muted);margin-top:2px}
- 
+
 /* Admin lock button — fixed top-right, accessible from any screen */
 .admin-btn{
   position:fixed;top:8px;right:8px;z-index:200;
@@ -391,7 +416,7 @@ table tbody tr:hover{background:var(--surface)}
 body.lightbg .admin-btn{
   background:rgba(255,255,255,.7);color:#0f172a;border-color:var(--border-dark);
 }
- 
+
 /* Disabled screen */
 #disabled-screen{display:none;min-height:100vh;align-items:center;justify-content:center;padding:24px;
   background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);color:#fff}
@@ -420,7 +445,7 @@ body.lightbg .admin-btn{
 .bowser-meta .refill-btn:hover{background:var(--accent-dark)}
 .bowser-meta .refill-btn.ghost{background:#fff;color:var(--text-muted);border:1px solid var(--border-dark)}
 .bowser-meta .refill-btn.ghost:hover{background:var(--surface);color:var(--text)}
- 
+
 /* Bowser stock banner (above source pills in new entry) */
 /* Bowser banner — visual cards with capacity bars */
 .bowser-banner{
@@ -442,7 +467,7 @@ body.lightbg .admin-btn{
 .bowser-banner .b-item .bar .fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
 .bowser-banner .b-item .bar .fill.low{background:var(--danger)}
 .bowser-banner .b-item .bar .fill.mid{background:#f59e0b}
- 
+
 /* ===== NEW FUEL ENTRY redesign — section grouping ===== */
 .form-section-label{
   font-size:10px;font-weight:600;color:var(--text-soft);
@@ -455,7 +480,7 @@ body.lightbg .admin-btn{
   border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;
 }
 .form-section .form-row:last-child{margin-bottom:0}
- 
+
 /* Progress bar at top of form */
 .form-progress{
   display:flex;align-items:center;gap:8px;margin-bottom:12px;
@@ -474,7 +499,7 @@ body.lightbg .admin-btn{
   font-size:11px;color:var(--text-muted);font-weight:600;
   min-width:48px;text-align:right;
 }
- 
+
 /* Pills with Tabler icons — stacked icon + label */
 .pill-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pill-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
@@ -487,7 +512,7 @@ body.lightbg .admin-btn{
   gap:4px;padding:10px 6px;min-height:54px;
 }
 .source-pill.pill-icon i.ti{font-size:18px;line-height:1}
- 
+
 /* "Set to Now" button below time inputs */
 .now-btn{
   display:inline-flex;align-items:center;gap:4px;
@@ -499,16 +524,16 @@ body.lightbg .admin-btn{
 }
 .now-btn:active{transform:scale(.97)}
 .now-btn i.ti{font-size:13px}
- 
+
 .empty{text-align:center;padding:30px 20px;color:var(--text-muted);font-size:13px}
 .empty .em{font-size:30px;margin-bottom:6px}
- 
+
 .badge{display:inline-block;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:600}
 .badge.ok{background:#dcfce7;color:#166534}
 .badge.off{background:#fee2e2;color:#991b1b}
 .badge.warn{background:#fef3c7;color:#92400e}
 .badge.gps{background:#d1fae5;color:#059669;font-weight:700}
- 
+
 /* Serial number in vehicles/machines list — accent color, slight pill */
 .serial-no{
   display:inline-block;padding:2px 8px;
@@ -517,7 +542,7 @@ body.lightbg .admin-btn{
   letter-spacing:.3px;min-width:24px;text-align:center;
 }
 .badge.info{background:#dbeafe;color:#1e40af}
- 
+
 .row-actions{display:flex;gap:6px;flex-wrap:wrap}
 .icon-btn{
   width:28px;height:28px;border-radius:6px;display:inline-flex;align-items:center;
@@ -526,7 +551,7 @@ body.lightbg .admin-btn{
 .icon-btn:hover{background:var(--surface)}
 .icon-btn.danger{color:var(--danger)}
 .icon-btn.danger:hover{background:#fee2e2}
- 
+
 /* Modal */
 .modal-bg{
   position:fixed;inset:0;background:rgba(15,23,42,.55);
@@ -541,7 +566,7 @@ body.lightbg .admin-btn{
 .modal-h h3{font-size:16px;font-weight:700}
 .modal-x{font-size:22px;color:var(--text-muted);width:30px;height:30px;border-radius:6px}
 .modal-x:hover{background:var(--surface-2)}
- 
+
 /* Toast */
 .toast{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
@@ -552,10 +577,10 @@ body.lightbg .admin-btn{
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:var(--danger)}
 .toast.ok{background:var(--success)}
- 
+
 /* Entry form specifics */
 .source-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
- 
+
 /* PIN Pad */
 .pin-section{background:var(--surface);border-radius:12px;padding:14px;margin-bottom:8px}
 .pin-display{display:flex;justify-content:center;gap:12px;margin-bottom:14px;padding:8px;min-height:28px;align-items:center;flex-wrap:wrap}
@@ -578,18 +603,18 @@ body.lightbg .admin-btn{
   color:#3f37c9;text-align:center;transition:all .15s;
 }
 .source-pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
- 
+
 .entry-meta{display:flex;gap:10px;font-size:11px;color:var(--text-muted);flex-wrap:wrap;margin-top:4px}
 .entry-meta b{color:var(--text)}
- 
+
 .cf-row{display:flex;gap:8px;align-items:center;padding:8px;background:var(--surface);border-radius:6px;margin-bottom:6px}
 .cf-row input,.cf-row select{padding:5px 8px;border:1px solid var(--border-dark);border-radius:4px;font-size:12px;background:#fff}
 .cf-row input[type="checkbox"]{width:auto}
- 
+
 .diff-block{background:var(--surface);border-left:3px solid var(--warn);padding:8px 10px;border-radius:4px;margin-top:6px;font-size:12px}
 .diff-block .old{color:var(--danger);text-decoration:line-through}
 .diff-block .new{color:var(--success);font-weight:600}
- 
+
 /* Searchable dropdown for vehicles */
 .sd-wrap{position:relative}
 .sd-results{
@@ -612,7 +637,7 @@ body.lightbg .admin-btn{
 .sd-item .sd-meta .sd-pill{display:inline-block;padding:1px 6px;background:var(--surface-2);border-radius:999px;margin-right:4px}
 .sd-empty{padding:18px 12px;text-align:center;color:var(--text-muted);font-size:12px}
 .sd-selected{background:#ecfeff;border-color:var(--accent)!important}
- 
+
 @media(max-width:520px){
   .topbar{padding:8px 12px}
   .brand{font-size:13px}
@@ -624,10 +649,10 @@ body.lightbg .admin-btn{
 </style>
 </head>
 <body>
- 
+
 <!-- Admin lock button — fixed top-right, accessible from any screen -->
 <button class="admin-btn" id="admin-btn" title="Administration" onclick="openAdminLogin()">🔒</button>
- 
+
 <!-- Disabled screen — shown when admin has disabled the app -->
 <div id="disabled-screen" class="screen">
   <div class="disabled-card">
@@ -637,7 +662,7 @@ body.lightbg .admin-btn{
     <div class="footnote">Contact your administrator for access</div>
   </div>
 </div>
- 
+
 <!-- ==================== CALCULATOR SCREEN ==================== -->
 <div id="calc-screen" class="screen active">
   <div class="calc">
@@ -667,26 +692,26 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v5.0 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v5.1 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v5.0</span>
+    <span style="opacity:.35;margin-left:6px">v5.1</span>
   </div>
 </div>
- 
+
 <!-- ==================== LOGIN SCREEN ==================== -->
 <div id="login-screen" class="screen">
   <div class="login-card">
     <div class="login-title">TASR <span style="color:var(--accent-dark)">BharatNext</span></div>
     <div class="login-sub">Fuel Manager · Secure Login</div>
- 
+
     <div class="role-tabs">
       <button class="role-tab active" data-role="manager">Diesel Manager</button>
       <button class="role-tab" data-role="owner">🔒 Admin</button>
     </div>
- 
+
     <div id="login-msg"></div>
- 
+
     <div id="login-manager">
       <div class="form-row">
         <label>Select your name</label>
@@ -697,32 +722,39 @@ body.lightbg .admin-btn{
         <div id="login-mgr-pin"></div>
       </div>
     </div>
- 
+
     <div id="login-owner" style="display:none">
       <div class="form-row">
         <label>Admin PIN</label>
         <div id="login-owner-pin"></div>
       </div>
     </div>
- 
+
     <button class="btn ghost" id="login-back" style="width:100%;margin-top:8px">← Back to calculator</button>
   </div>
 </div>
- 
+
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.0</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.1</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
     <button class="btn ghost small" id="logout-btn">Logout</button>
   </div>
- 
+
   <div class="tabbar" id="tabbar"></div>
   <div id="pages"></div>
+
+  <!-- Floating action button — manager only, hidden when already on New Entry tab.
+       Visibility + label updated dynamically by renderDash. -->
+  <button id="fab" class="fab" onclick="fabAction()" aria-label="Add new fuel entry" style="display:none">
+    <span class="fab-plus">+</span>
+    <span class="fab-label">New Entry</span>
+  </button>
 </div>
- 
+
 <!-- Modal -->
 <div class="modal-bg" id="modal">
   <div class="modal">
@@ -733,12 +765,12 @@ body.lightbg .admin-btn{
     <div id="modal-body"></div>
   </div>
 </div>
- 
+
 <div class="toast" id="toast"></div>
- 
+
 <script>
 'use strict';
- 
+
 // PWA service worker registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -759,7 +791,7 @@ if ('serviceWorker' in navigator) {
       .catch(e => console.warn('[TASR] SW failed:', e));
   });
 }
- 
+
 // ============================================================
 // CONFIG — paste your Supabase credentials here
 // ============================================================
@@ -782,7 +814,7 @@ const DEPLOY = {
   bowser2Cap:     3200,
 };
 // ============================================================
- 
+
 const SUPABASE_URL  = DEPLOY.supabaseUrl;
 const SUPABASE_ANON = DEPLOY.supabaseAnon;
 const DEFAULT_SECRET = '3578';
@@ -813,7 +845,7 @@ const DEVICE_ID = (() => {
   if(!d){ d = 'dev_'+Math.random().toString(36).slice(2,10); localStorage.setItem('tasr_device_id',d); }
   return d;
 })();
- 
+
 // ============================================================
 // SUPABASE INIT
 // ============================================================
@@ -822,7 +854,7 @@ if(SUPABASE_URL && SUPABASE_ANON){
   try{ sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON); }
   catch(e){ console.warn('Supabase init failed', e); }
 }
- 
+
 // ============================================================
 // STATE
 // ============================================================
@@ -857,9 +889,9 @@ const state = {
   allEntriesFilter: { from:'', to:'', managerId:'', vehicleId:'', vehicleText:'', gpsMode:'all' },
   myEntriesFilter:  { from:'', to:'', vehicleId:'', vehicleText:'' },
 };
- 
+
 const LS_KEY = 'tasr_fuel_state_v1';
- 
+
 function persist(){
   localStorage.setItem(LS_KEY, JSON.stringify({
     vehicles:state.vehicles, managers:state.managers,
@@ -880,7 +912,7 @@ function loadPersisted(){
     });
   }catch(e){ console.warn('load failed', e); }
 }
- 
+
 // ============================================================
 // UTILITIES
 // ============================================================
@@ -951,12 +983,22 @@ const fmtD = ts => {
   return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'});
 };
 const escapeHtml = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- 
+// Format a number with Indian-style thousand separators (lakh / crore).
+// fmtNum(82768) → "82,768"   fmtNum(94417.7, 1) → "94,417.7"
+// Use ONLY for display — never feed back into form inputs or calculations.
+function fmtNum(n, decimals){
+  if(n == null || n === '' || isNaN(+n)) return '—';
+  const opts = decimals != null
+    ? { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
+    : { maximumFractionDigits: 2 };
+  return (+n).toLocaleString('en-IN', opts);
+}
+
 function toast(msg, type=''){
   const t = $('#toast'); t.textContent = msg; t.className = 'toast show ' + type;
   setTimeout(()=>{ t.className='toast'; }, 2500);
 }
- 
+
 function openModal(title, html){
   $('#modal-title').textContent = title;
   $('#modal-body').innerHTML = html;
@@ -964,7 +1006,7 @@ function openModal(title, html){
 }
 function closeModal(){ $('#modal').classList.remove('active'); }
 window.closeModal = closeModal;
- 
+
 // ============================================================
 // BOWSER STOCK (T1 & T2 — capacity 3200 L each)
 // ============================================================
@@ -973,7 +1015,7 @@ function getBowserCapacity(tank){
   const fallback = tank === 't1' ? DEPLOY.bowser1Cap : DEPLOY.bowser2Cap;
   return +(state.settings['bowser_'+tank+'_capacity']) || fallback;
 }
- 
+
 // Apply the stock delta when an entry is created, updated, or deleted.
 // Pass oldEntry=null for new entries; newEntry=null when the entry is being removed.
 function applyBowserDelta(oldEntry, newEntry){
@@ -990,7 +1032,7 @@ function applyBowserDelta(oldEntry, newEntry){
     updateSetting(key, next);
   });
 }
- 
+
 // ============================================================
 // 10 manager slots — ensure local array always has 10 entries
 // ============================================================
@@ -1002,17 +1044,17 @@ function ensureManagerSlots(){
   }
   state.managers.sort((a,b)=>a.id-b.id);
 }
- 
+
 // ============================================================
 // CALCULATOR
 // ============================================================
 const calcState = { expr:'', history:'', secret:'' };
- 
+
 function calcRender(){
   $('#calc-current').textContent = calcState.expr || '0';
   $('#calc-history').innerHTML = calcState.history || '&nbsp;';
 }
- 
+
 function calcPress(k){
   // track secret unlock — any digit pressed appends; non-digit clears
   if(/^[0-9]$/.test(k)){
@@ -1044,7 +1086,7 @@ function calcPress(k){
   } else {
     calcState.secret = '';
   }
- 
+
   if(k==='C'){ calcState.expr=''; calcState.history=''; calcRender(); return; }
   if(k==='='){
     try{
@@ -1069,7 +1111,7 @@ function calcPress(k){
   calcState.expr += k;
   calcRender();
 }
- 
+
 // Calc input — MAXIMUM defensive. Multiple events, document-level, with
 // visible on-screen diagnostic. CSS :active fires (user sees flash) which
 // proves touchstart works; so we bind touchstart too, not just click.
@@ -1095,8 +1137,8 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v5.0] Calc input handlers attached at document level (click + pointerup + touchstart)');
- 
+console.log('[TASR Fuel v5.1] Calc input handlers attached at document level (click + pointerup + touchstart)');
+
 // keyboard support
 document.addEventListener('keydown', e=>{
   if(!$('#calc-screen').classList.contains('active')) return;
@@ -1108,7 +1150,7 @@ document.addEventListener('keydown', e=>{
   else if(e.key==='Backspace') { calcState.expr = calcState.expr.slice(0,-1); calcRender(); }
   else if(e.key==='Escape') calcPress('C');
 });
- 
+
 // ============================================================
 // SCREENS
 // ============================================================
@@ -1116,13 +1158,14 @@ function showScreen(id){
   $$('.screen').forEach(s=>s.classList.remove('active'));
   $('#'+id).classList.add('active');
 }
-function gotoCalc(){ setLightBg(false); showScreen('calc-screen'); calcState.expr=''; calcState.history=''; calcRender(); }
+function gotoCalc(){ setLightBg(false); showScreen('calc-screen'); calcState.expr=''; calcState.history=''; calcRender(); const fab=document.getElementById('fab'); if(fab) fab.style.display='none'; }
 function gotoLogin(){
   setLightBg(true);
   showScreen('login-screen');
   $('#login-msg').innerHTML='';
   refreshManagerLoginDropdown();
   setupLoginPinPads();
+  const fab=document.getElementById('fab'); if(fab) fab.style.display='none';
 }
 function gotoDash(){
   setLightBg(true);
@@ -1132,13 +1175,13 @@ function gotoDash(){
     pullAll().then(()=>{ if(state.user) renderDash({auto:true}); });
   }
 }
- 
+
 function refreshManagerLoginDropdown(){
   const sel = $('#login-mgr-select');
   const active = state.managers.filter(m=>m.active);
   sel.innerHTML = '<option value="">— select —</option>' + active.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
 }
- 
+
 // On boot, decide initial screen: calculator (if disguise on) or login
 function bootScreen(){
   // Admin kill switch — overrides everything
@@ -1150,13 +1193,13 @@ function bootScreen(){
   if(enabled){ gotoCalc(); }
   else { gotoLogin(); }
 }
- 
+
 // Track body class for admin button contrast styling
 function setLightBg(on){
   if(on) document.body.classList.add('lightbg');
   else   document.body.classList.remove('lightbg');
 }
- 
+
 // ============================================================
 // ADMIN (super-admin kill switch)
 // ============================================================
@@ -1164,7 +1207,7 @@ function setLightBg(on){
 // Admin should immediately go to Security panel and set a new password,
 // after which this fallback is no longer accepted.
 const ADMIN_PASSWORD_FALLBACK = 'Tasr@jvs.com';
- 
+
 window.openAdminLogin = function(){
   openModal('🔒 Administration Access', `
     <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Enter administrator password to access system controls.</p>
@@ -1182,7 +1225,7 @@ window.openAdminLogin = function(){
     }
   }, 100);
 };
- 
+
 window.adminLogin = async function(){
   const pwd = document.getElementById('adm-pwd').value;
   if(!pwd){ document.getElementById('adm-login-msg').innerHTML = '<div class="msg err">Enter password</div>'; return; }
@@ -1196,13 +1239,13 @@ window.adminLogin = async function(){
     document.getElementById('adm-pwd').value = '';
   }
 };
- 
+
 window.openAdminPanel = function(){
   const appEnabled   = state.settings.admin_app_enabled !== 'false';
   const ownerEnabled = state.settings.admin_owner_enabled !== 'false';
   const message      = state.settings.admin_disable_message || 'Service temporarily unavailable.';
   const disabledPages = (state.settings.admin_pages_disabled || '').split(',').map(s=>s.trim()).filter(Boolean);
- 
+
   const allPages = [
     {key:'overview',  label:'Overview'},
     {key:'entries',   label:'All Entries'},
@@ -1214,7 +1257,7 @@ window.openAdminPanel = function(){
     {key:'audit',     label:'Audit Log'},
     {key:'settings',  label:'Settings'},
   ];
- 
+
   openModal('🔒 Administration Panel', `
     <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--surface);border-radius:8px;cursor:pointer;margin-bottom:10px">
       <input type="checkbox" id="ap-app-enabled" ${appEnabled?'checked':''} style="width:auto;transform:scale(1.3);flex-shrink:0">
@@ -1223,7 +1266,7 @@ window.openAdminPanel = function(){
         <div style="font-size:12px;color:var(--text-muted)">When OFF, app shows the disable message to everyone</div>
       </div>
     </label>
- 
+
     <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--surface);border-radius:8px;cursor:pointer;margin-bottom:14px">
       <input type="checkbox" id="ap-owner-enabled" ${ownerEnabled?'checked':''} style="width:auto;transform:scale(1.3);flex-shrink:0">
       <div>
@@ -1231,13 +1274,13 @@ window.openAdminPanel = function(){
         <div style="font-size:12px;color:var(--text-muted)">When OFF, Admin can't login. Diesel managers still work.</div>
       </div>
     </label>
- 
+
     <div class="form-row">
       <label>Disable Message</label>
       <textarea id="ap-message" rows="3" style="width:100%;padding:10px;border:1px solid var(--border-dark);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical">${escapeHtml(message)}</textarea>
       <div class="hint">Shown when app is disabled. e.g. "Payment due", "Technical issue, please wait"</div>
     </div>
- 
+
     <div style="margin-top:18px;padding:12px;background:var(--surface);border-radius:8px">
       <div style="font-weight:600;margin-bottom:4px">Admin Page Access</div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Toggle individual Admin pages. Disabled pages vanish from the tab bar.</div>
@@ -1250,7 +1293,7 @@ window.openAdminPanel = function(){
         `).join('')}
       </div>
     </div>
- 
+
     <div style="background:#fef3c7;padding:14px;border-radius:8px;margin-bottom:14px;border:1px solid #fcd34d">
       <div style="font-weight:700;margin-bottom:4px;color:#92400e">🔒 Security</div>
       <div style="font-size:12px;color:#78350f;margin-bottom:10px">Change admin password and calculator unlock code. Both stored as one-way hashes — even with database access nobody can read them. Set these immediately on first install.</div>
@@ -1265,11 +1308,11 @@ window.openAdminPanel = function(){
         Unlock code ${state.settings.secret_code_hash ? '<span style="color:#059669">✓ Custom hash set</span>' : '<span style="color:#dc2626">⚠ Default (3578) — change now</span>'}
       </div>
     </div>
- 
+
     <button class="btn" style="width:100%;margin-top:14px" onclick="saveAdminSettings()">Save Changes</button>
   `);
 };
- 
+
 // ============================================================
 // SECURITY: Admin password + unlock code change modals
 // ============================================================
@@ -1314,7 +1357,7 @@ window.saveAdminPassword = async function(){
   closeModal();
   toast('Admin password updated. Use the new password next time.','ok');
 };
- 
+
 window.changeUnlockCodeModal = function(){
   openModal('🔢 Change Calculator Unlock Code', `
     <div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:10px;border-radius:6px;margin-bottom:14px;font-size:12px;color:#78350f">
@@ -1362,7 +1405,7 @@ window.saveUnlockCode = async function(){
   closeModal();
   toast('Unlock code updated. Share verbally with team.','ok');
 };
- 
+
 window.saveAdminSettings = function(){
   updateSetting('admin_app_enabled',   $('#ap-app-enabled').checked ? 'true' : 'false');
   updateSetting('admin_owner_enabled', $('#ap-owner-enabled').checked ? 'true' : 'false');
@@ -1375,7 +1418,7 @@ window.saveAdminSettings = function(){
   closeModal(); toast('Administration settings saved','ok');
   applyAdminState();
 };
- 
+
 function applyAdminState(){
   // If app is disabled → show disabled screen and force out
   if(state.settings.admin_app_enabled === 'false'){
@@ -1396,7 +1439,7 @@ function applyAdminState(){
     if(state.user) renderDash();
   }
 }
- 
+
 function showDisabledScreen(){
   // Hide all other screens
   $$('.screen').forEach(s => s.classList.remove('active'));
@@ -1408,7 +1451,7 @@ function showDisabledScreen(){
   }
   document.body.classList.remove('lightbg');
 }
- 
+
 // ============================================================
 // PIN PAD COMPONENT
 // ============================================================
@@ -1417,7 +1460,7 @@ function makePinPad(containerEl, opts){
   let pin = '';
   const minDots = opts.minDots || 4;
   const maxLen = opts.maxLen || 8;
- 
+
   containerEl.innerHTML = `
     <div class="pin-section">
       <div class="pin-display"></div>
@@ -1439,7 +1482,7 @@ function makePinPad(containerEl, opts){
   `;
   const display = containerEl.querySelector('.pin-display');
   const pad = containerEl.querySelector('.pin-pad');
- 
+
   function render(){
     const shown = Math.max(pin.length, minDots);
     display.innerHTML = Array.from({length:shown}, (_,i) =>
@@ -1468,7 +1511,7 @@ function makePinPad(containerEl, opts){
     clear: ()=>{ pin=''; render(); },
   };
 }
- 
+
 let _mgrPinPad = null, _ownerPinPad = null;
 function setupLoginPinPads(){
   _mgrPinPad = makePinPad($('#login-mgr-pin'), {
@@ -1509,7 +1552,7 @@ function doManagerLogin(pin){
   state.activeTab = 'new-entry';
   gotoDash();
 }
- 
+
 // ============================================================
 // LOGIN
 // ============================================================
@@ -1523,14 +1566,14 @@ $$('.role-tab').forEach(t=>t.addEventListener('click', ()=>{
   if(_mgrPinPad) _mgrPinPad.clear();
   if(_ownerPinPad) _ownerPinPad.clear();
 }));
- 
+
 $('#login-back').addEventListener('click', gotoCalc);
- 
+
 $('#logout-btn').addEventListener('click', ()=>{
   state.user = null;
   bootScreen();
 });
- 
+
 // ============================================================
 // SYNC LAYER
 // ============================================================
@@ -1542,10 +1585,10 @@ function updateSyncPill(){
   if(state.pendingOps.length>0){ p.className='sync-pill sync-pending'; t.textContent='Pending '+state.pendingOps.length; return; }
   p.className = 'sync-pill sync-live'; t.textContent = 'Live';
 }
- 
+
 window.addEventListener('online', ()=>{ state.online = true; updateSyncPill(); trySync(); });
 window.addEventListener('offline',()=>{ state.online = false; updateSyncPill(); });
- 
+
 async function pullAll(){
   if(!sb) return;
   try{
@@ -1557,7 +1600,7 @@ async function pullAll(){
       sb.from('entries').select('*').order('fill_time',{ascending:false}).limit(2000),
       sb.from('settings').select('*'),
     ]);
- 
+
     // Helper: merge a freshly-pulled remote list with any locally-pending (unsynced)
     // rows so that records still waiting in the outbox do NOT vanish on refresh.
     function mergeWithPending(remoteList, table, localList){
@@ -1578,7 +1621,7 @@ async function pullAll(){
       merged.push(...localPending);
       return merged;
     }
- 
+
     if(!veh.error) state.vehicles = mergeWithPending(veh.data, 'vehicles', state.vehicles);
     if(!mgr.error){
       // merge remote managers with local slots
@@ -1600,13 +1643,13 @@ async function pullAll(){
   }catch(e){ console.warn('pull error', e); }
   finally{ state.syncing=false; _syncingStart = 0; updateSyncPill(); }
 }
- 
+
 function queueOp(op){
   state.pendingOps.push({...op, ts:Date.now(), id:uuid()});
   persist(); updateSyncPill();
   if(state.online && sb) trySync();
 }
- 
+
 async function trySync(){
   if(!sb || !state.online || state.syncing || state.pendingOps.length===0) return;
   // Wrap whole flow in try/finally so syncing flag CANNOT get stuck on
@@ -1640,7 +1683,7 @@ async function trySync(){
     try { renderDash({auto:true}); } catch(e){}
   }
 }
- 
+
 // Watchdog: if syncing has been true for >20s, force-reset. Belt-and-suspenders
 // safety net so the pill cannot ever get permanently stuck on "Syncing…".
 let _syncingStart = 0;
@@ -1650,11 +1693,11 @@ setInterval(()=>{
     state.syncing = false; _syncingStart = 0; updateSyncPill();
   }
 }, 5000);
- 
+
 // ============================================================
 // DATA MUTATIONS (write-through: local first, then queue+sync)
 // ============================================================
- 
+
 // VEHICLES
 function addVehicle(v){
   v.id = v.id || uuid();
@@ -1674,7 +1717,7 @@ function deleteVehicle(id){
   persist();
   queueOp({table:'vehicles', action:'delete', match:{id}});
 }
- 
+
 // MANAGERS
 function updateManager(id, patch){
   const i = state.managers.findIndex(m=>m.id===id);
@@ -1683,7 +1726,7 @@ function updateManager(id, patch){
   persist();
   queueOp({table:'managers', action:'upsert', data:state.managers[i]});
 }
- 
+
 // CUSTOM FIELDS
 function addCustomField(f){
   f.id = f.id || uuid();
@@ -1704,7 +1747,7 @@ function deleteCustomField(id){
   persist();
   queueOp({table:'custom_fields', action:'delete', match:{id}});
 }
- 
+
 // ENTRIES
 function addEntry(e){
   e.id = e.id || uuid();
@@ -1747,14 +1790,14 @@ function deleteEntry(id){
   persist();
   queueOp({table:'entries', action:'delete', match:{id}});
 }
- 
+
 // SETTINGS
 function updateSetting(key, value){
   state.settings[key] = String(value);
   persist();
   queueOp({table:'settings', action:'upsert', data:{key, value:String(value)}});
 }
- 
+
 // ============================================================
 // DASHBOARD RENDERING
 // ============================================================
@@ -1766,7 +1809,7 @@ function isPageInputFocused(){
   const pages = $('#pages');
   return !!(pages && pages.contains(ae));
 }
- 
+
 // True if the manager's New Entry form has ANY in-progress data.
 // Used to block auto re-renders that would wipe a half-filled form.
 // Note: ne-date / ne-time are pre-filled defaults, so they DON'T count as dirty.
@@ -1783,7 +1826,7 @@ function isNewEntryDirty(){
   if(document.querySelector('#ne-src-pills .source-pill.active')) return true;
   return false;
 }
- 
+
 function renderDash(opts){
   opts = opts || {};
   if(!state.user) return;
@@ -1795,7 +1838,7 @@ function renderDash(opts){
   }
   $('#who-name').textContent = state.user.name;
   $('#who-role').textContent = state.user.role === 'owner' ? '🔒 Admin · Full access' : 'Diesel Manager';
- 
+
   const disabledPages = (state.settings.admin_pages_disabled || '').split(',').map(s=>s.trim()).filter(Boolean);
   const allOwnerTabs = [
     {key:'overview',   label:'Overview'},
@@ -1814,16 +1857,16 @@ function renderDash(opts){
       {key:'new-entry',  label:'New Entry'},
       {key:'my-entries', label:'My Entries'},
     ];
- 
+
   // If the user's currently active tab has been disabled by Admin, jump to first available
   if(state.user.role === 'owner' && !tabs.some(t => t.key === state.activeTab)){
     state.activeTab = tabs.length ? tabs[0].key : 'overview';
   }
- 
+
   $('#tabbar').innerHTML = tabs.map(t =>
     `<button class="tab ${state.activeTab===t.key?'active':''}" data-tab="${t.key}">${t.label}</button>`
   ).join('');
- 
+
   $$('#tabbar .tab').forEach(b => b.addEventListener('click', ()=>{
     state.activeTab = b.dataset.tab;
     renderDash();
@@ -1839,12 +1882,12 @@ function renderDash(opts){
       }).catch(()=>{});
     }
   }));
- 
+
   const pages = $('#pages');
   pages.innerHTML = '';
   const page = document.createElement('div'); page.className='page active';
   pages.appendChild(page);
- 
+
   if(state.user.role === 'owner'){
     // Guard: skip rendering for any tab that admin has disabled
     if(disabledPages.includes(state.activeTab)){
@@ -1862,10 +1905,25 @@ function renderDash(opts){
     if(state.activeTab==='new-entry') renderNewEntry(page);
     else if(state.activeTab==='my-entries') renderMyEntries(page);
   }
- 
+
   updateSyncPill();
+
+  // Floating action button — visible only for managers, hidden on the
+  // New Entry tab itself (since the FAB's whole purpose is to get there).
+  const fab = document.getElementById('fab');
+  if(fab){
+    const showFab = state.user.role === 'manager' && state.activeTab !== 'new-entry';
+    fab.style.display = showFab ? 'flex' : 'none';
+  }
 }
- 
+
+// FAB click: takes the manager straight to New Entry tab.
+window.fabAction = function(){
+  if(!state.user || state.user.role !== 'manager') return;
+  state.activeTab = 'new-entry';
+  renderDash();
+};
+
 // ---------- OWNER: OVERVIEW ----------
 function renderOverview(page){
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1877,14 +1935,47 @@ function renderOverview(page){
   const totalLiters = state.entries.reduce((s,e)=>s+(+e.quantity||0),0);
   const todayLiters = todays.reduce((s,e)=>s+(+e.quantity||0),0);
   const activeMgrs = state.managers.filter(m=>m.active).length;
- 
+
   page.innerHTML = `
     <div class="grid grid-3">
-      <div class="kpi"><div class="lbl">Today's entries</div><div class="val">${todays.length}</div><div class="sub">${todayLiters.toFixed(1)} L</div></div>
-      <div class="kpi"><div class="lbl">Total entries</div><div class="val">${state.entries.length}</div><div class="sub">${totalLiters.toFixed(0)} L all time</div></div>
-      <div class="kpi"><div class="lbl">Active managers</div><div class="val">${activeMgrs} / 10</div><div class="sub">${state.vehicles.filter(v=>v.active!==false).length} vehicles</div></div>
+      <div class="kpi"><div class="lbl">Today's entries</div><div class="val">${fmtNum(todays.length)}</div><div class="sub">${fmtNum(todayLiters, 1)} L</div></div>
+      <div class="kpi"><div class="lbl">Total entries</div><div class="val">${fmtNum(state.entries.length)}</div><div class="sub">${fmtNum(totalLiters, 0)} L all time</div></div>
+      <div class="kpi"><div class="lbl">Active managers</div><div class="val">${activeMgrs} / 10</div><div class="sub">${fmtNum(state.vehicles.filter(v=>v.active!==false).length)} vehicles</div></div>
     </div>
- 
+
+    ${(function(){
+      // Low-stock alert banner — checks both bowsers, surfaces the worst one(s).
+      // Critical: <20% full → red. Warning: <40% full → amber. Otherwise hide.
+      const tanks = ['t1','t2'].map(t => {
+        const stock = getBowserStock(t);
+        const cap = getBowserCapacity(t);
+        const pct = cap > 0 ? (stock/cap)*100 : 100;
+        return { t, stock, cap, pct };
+      });
+      const critical = tanks.filter(x => x.pct < 20);
+      const low      = tanks.filter(x => x.pct >= 20 && x.pct < 40);
+      if(critical.length === 0 && low.length === 0) return '';
+      const severe = critical.length > 0;
+      const list = severe ? critical : low;
+      const bg = severe ? '#fef2f2' : '#fef3c7';
+      const border = severe ? '#dc2626' : '#f59e0b';
+      const tcol = severe ? '#991b1b' : '#92400e';
+      const icon = severe ? '⚠️' : '⚡';
+      const word = severe ? 'critically low' : 'running low';
+      return `
+        <div style="background:${bg};border-left:4px solid ${border};border-radius:8px;padding:12px 14px;margin-top:14px;display:flex;align-items:center;gap:12px">
+          <div style="font-size:22px;line-height:1">${icon}</div>
+          <div style="flex:1">
+            <div style="font-weight:700;color:${tcol};font-size:13px">Bowser ${word}</div>
+            <div style="color:${tcol};font-size:12px;margin-top:2px">
+              ${list.map(x => `Tank ${x.t.toUpperCase()}: <b>${fmtNum(x.stock,1)} L</b> / ${fmtNum(x.cap,0)} L (${x.pct.toFixed(0)}%)`).join(' &nbsp;·&nbsp; ')}
+              ${severe ? ' — refill immediately' : ' — schedule a refill soon'}
+            </div>
+          </div>
+        </div>
+      `;
+    })()}
+
     <div class="section" style="margin-top:14px">
       <div class="section-h"><h3>Bowser Stock</h3><span class="sub">Live · auto-deducts on each issue</span></div>
       <div class="grid grid-2">
@@ -1892,14 +1983,14 @@ function renderOverview(page){
         ${renderBowserCard('t2', true)}
       </div>
     </div>
- 
+
     <div class="section" style="margin-top:14px">
       <div class="section-h"><h3>Latest 10 entries</h3><span class="sub">Live across all managers</span></div>
       ${renderEntriesTable(state.entries.slice(0,10), {showManager:true})}
     </div>
   `;
 }
- 
+
 function renderBowserCard(tank, withRefill){
   const stock = getBowserStock(tank);
   const cap = getBowserCapacity(tank);
@@ -1922,7 +2013,7 @@ function renderBowserCard(tank, withRefill){
     </div>
   `;
 }
- 
+
 // Admin-only: directly set the exact stock value (corrections, audits, manual reconciliation)
 window.overrideStockModal = function(tank){
   if(!state.user || state.user.role !== 'owner'){ toast('Only Admin can override stock','err'); return; }
@@ -1964,7 +2055,7 @@ window.confirmOverrideStock = function(tank){
   closeModal(); renderDash();
   toast('Bowser '+tank.toUpperCase()+' stock set to '+newStock.toFixed(1)+' L','ok');
 };
- 
+
 window.refillBowserModal = function(tank){
   const stock = getBowserStock(tank);
   const cap = getBowserCapacity(tank);
@@ -1996,7 +2087,7 @@ window.confirmRefill = function(tank){
   closeModal(); renderDash();
   toast('Bowser '+tank.toUpperCase()+' refilled — now '+newStock.toFixed(1)+' L','ok');
 };
- 
+
 // Inline stock banner shown above source pills for managers
 function renderBowserBanner(){
   function tier(stock, cap){
@@ -2024,7 +2115,7 @@ function renderBowserBanner(){
     </div>
   `;
 }
- 
+
 // ---------- AVG CALCULATION ----------
 // mode='trip'     : (curr_hmr - immediate prev_hmr) / curr_qty   (km/L or L/hr)
 // mode='full2full': (curr_hmr - last_FULL_hmr) / sum(qty of all fills since last FULL incl. this)
@@ -2036,7 +2127,7 @@ function calcAvg(entry, mode){
   const isMachine = veh.type === 'machine';
   const t = new Date(entry.fill_time || entry.created_at).getTime();
   const unit = isMachine ? 'L/hr' : 'km/L';
- 
+
   if(mode === 'trip'){
     const prev = state.entries
       .filter(e => e.vehicle_id === entry.vehicle_id && e.id !== entry.id)
@@ -2049,7 +2140,7 @@ function calcAvg(entry, mode){
     const value = isMachine ? qty/diff : diff/qty;
     return { value, formatted: value.toFixed(2)+' '+unit, meaningful: entry.fill_type==='full', mode, runDelta: diff, isMachine };
   }
- 
+
   // full2full
   if(entry.fill_type !== 'full') return null;
   const sameVeh = state.entries.filter(e => e.vehicle_id === entry.vehicle_id);
@@ -2069,7 +2160,7 @@ function calcAvg(entry, mode){
   const value = isMachine ? totalQty/diff : diff/totalQty;
   return { value, formatted: value.toFixed(2)+' '+unit, meaningful: true, mode, span: between.length, runDelta: diff, isMachine };
 }
- 
+
 // PARTIAL CONSUMPTION — between last partial fill and current fill.
 //   consumed = last_partial.stock + sum(fills from last_partial inclusive to current exclusive) − cur.stock
 //   Vehicle: km/L = (cur.hmr − last_partial.hmr) / consumed
@@ -2110,7 +2201,7 @@ function calcPartialConsumption(entry){
   const value = isMachine ? consumed/delta : delta/consumed;
   return { value, formatted: value.toFixed(2)+' '+unit, unit, consumed, delta };
 }
- 
+
 // F2F (FULL-TO-FULL) CONSUMPTION — sum of fills between two Full events.
 //   consumed = sum(fills strictly after last_full, up to AND including current)
 //   Only computable when CURRENT fill is also Full.
@@ -2147,7 +2238,7 @@ function calcF2FConsumption(entry){
   const value = isMachine ? consumed/delta : delta/consumed;
   return { value, formatted: value.toFixed(2)+' '+unit, unit, consumed, delta };
 }
- 
+
 // Diff (GPS − F2F). F2F only — Partial not used as fallback per user spec.
 function calcConsDiff(entry){
   // Diff = GPS − F2F, both in LITERS (per user spec).
@@ -2164,21 +2255,21 @@ function calcConsDiff(entry){
   const severity = absPct < 10 ? 'ok' : (absPct < 20 ? 'warn' : 'bad');
   return { delta, pct, severity, manualVal: f2f.consumed, gpsVal: gps, unit: 'L', basedOn: 'F2F' };
 }
- 
+
 // Back-compat alias (some older code paths may still call calcManualConsumption)
 function calcManualConsumption(entry){
   const f = calcF2FConsumption(entry);
   if(f && f.value !== undefined) return f;
   return calcPartialConsumption(entry);
 }
- 
+
 // Persist + apply the avg-mode toggle
 window.setAvgMode = function(m){
   state.avgMode = m;
   try{ localStorage.setItem('tasr_avg_mode', m); }catch(e){}
   renderDashPreservingTableScroll();
 };
- 
+
 // Reusable toggle UI for switching avg calculation mode
 function avgModeToggleHtml(){
   return `
@@ -2196,12 +2287,12 @@ function avgModeToggleHtml(){
     </div>
   `;
 }
- 
+
 // ---------- ENTRIES TABLE / CARDS HELPER ----------
 function renderEntriesTable(entries, opts={}){
   let viewMode = 'table';
   try { viewMode = localStorage.getItem('tasr_view_mode') || 'table'; } catch(e) {}
- 
+
   const sort = state.entrySort || { col:'time', dir:'desc' };
   const sortOpts = [
     {k:'time',    l:'Time'},
@@ -2217,7 +2308,7 @@ function renderEntriesTable(entries, opts={}){
     {k:'source',  l:'Source'},
   ];
   const sortNonDefault = !(sort.col === 'time' && sort.dir === 'desc');
- 
+
   const toolbar = entries.length ? `
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
       <div class="view-toggle">
@@ -2236,12 +2327,42 @@ function renderEntriesTable(entries, opts={}){
         <b style="color:var(--text)">${entries.length}</b> ${entries.length === 1 ? 'entry' : 'entries'}
       </div>
     </div>` : '';
- 
-  if(!entries.length) return `<div class="empty"><div class="em">⛽</div>No entries yet</div>`;
+
+  if(!entries.length){
+    // Context-aware empty state: tailor the CTA to the user's role + tab.
+    const isManager = state.user && state.user.role === 'manager';
+    const tab = state.activeTab;
+    let icon = '⛽', title = 'No fuel entries yet', sub = '', cta = '';
+    if(isManager && tab === 'my-entries'){
+      title = 'You haven\'t logged any fuel fills yet';
+      sub   = 'Tap below to add your first entry.';
+      cta   = `<button class="btn small" style="margin-top:10px" onclick="state.activeTab='new-entry';renderDash()">+ New Fuel Entry</button>`;
+    } else if(tab === 'entries' || tab === 'overview'){
+      // Admin view — could be filtered, could be empty database
+      const hasAnyFilter =
+        (state.allEntriesFilter && (state.allEntriesFilter.from || state.allEntriesFilter.to ||
+          state.allEntriesFilter.managerId || state.allEntriesFilter.vehicleId ||
+          (state.allEntriesFilter.gpsMode && state.allEntriesFilter.gpsMode !== 'all')));
+      if(hasAnyFilter && state.entries.length > 0){
+        icon = '🔍';
+        title = 'No entries match your filters';
+        sub   = 'Try clearing dates, vehicle, or "Show" filter.';
+      } else if(state.entries.length === 0){
+        title = 'No fuel entries recorded yet';
+        sub   = 'Once managers start logging fills, entries will appear here.';
+      }
+    }
+    return `<div class="empty">
+      <div class="em">${icon}</div>
+      <div style="font-weight:600;color:var(--text);margin-bottom:4px">${title}</div>
+      ${sub?`<div style="font-size:12px;color:var(--text-muted)">${sub}</div>`:''}
+      ${cta}
+    </div>`;
+  }
   if(viewMode === 'cards') return toolbar + renderEntriesCardsView(entries, opts);
   return toolbar + renderEntriesTableView(entries, opts);
 }
- 
+
 // Helper: re-render the dashboard while preserving horizontal + vertical scroll
 // position of the active entries table. Used by sort handlers so clicking a
 // column header doesn't snap the scroll back to the first column.
@@ -2261,30 +2382,30 @@ function renderDashPreservingTableScroll(){
     window.scrollTo({ top: pageScroll, behavior: 'instant' });
   });
 }
- 
+
 window.sortByDropdown = function(col){
   if(!state.entrySort) state.entrySort = { col:'time', dir:'desc' };
   state.entrySort.col = col;
   renderDashPreservingTableScroll();
 };
- 
+
 window.sortToggleDir = function(){
   if(!state.entrySort) state.entrySort = { col:'time', dir:'desc' };
   state.entrySort.dir = state.entrySort.dir === 'asc' ? 'desc' : 'asc';
   renderDashPreservingTableScroll();
 };
- 
+
 window.resetEntrySort = function(){
   state.entrySort = { col:'time', dir:'desc' };
   renderDashPreservingTableScroll();
 };
- 
+
 // Persist view-mode (Table / Cards) across sessions
 window.setViewMode = function(m){
   try { localStorage.setItem('tasr_view_mode', m); } catch(e){}
   renderDash();
 };
- 
+
 // Sortable column support. Click a header → toggle sort.
 function sortEntries(list){
   const { col, dir } = state.entrySort || { col:'time', dir:'desc' };
@@ -2316,7 +2437,7 @@ function sortEntries(list){
     return 0;
   });
 }
- 
+
 window.sortBy = function(col){
   if(!state.entrySort) state.entrySort = { col:'time', dir:'desc' };
   if(state.entrySort.col === col){
@@ -2327,16 +2448,16 @@ window.sortBy = function(col){
   }
   renderDashPreservingTableScroll();
 };
- 
+
 function sortArrow(col){
   if(!state.entrySort || state.entrySort.col !== col) return '<span class="sort-arr">↕</span>';
   return `<span class="sort-arr">${state.entrySort.dir === 'asc' ? '▲' : '▼'}</span>`;
 }
- 
+
 function sortedClass(col){
   return (state.entrySort && state.entrySort.col === col) ? 'sorted' : '';
 }
- 
+
 // Build a per-entry display bag so Table + Cards share the same formatting
 function buildEntryDisplay(e){
   const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
@@ -2408,14 +2529,14 @@ function buildEntryDisplay(e){
   }
   return { veh, vehDisplay, vehHtml, isGps, unit, src, editBadge, fillBadge, avgCell, partialCell, f2fCell, gpsCell, diffCell };
 }
- 
+
 // Table view — only Vehicle (1st col) is frozen on horizontal scroll.
 // Click any header to sort. Vertical scroll is page-level so admin sees ALL entries.
 function renderEntriesTableView(entries, opts={}){
   const showMgr = opts.showManager !== false;
   const canEdit = opts.canEdit;
   const sorted = sortEntries(entries);
- 
+
   const rows = sorted.map(e => {
     const d = buildEntryDisplay(e);
     const cfCells = state.customFields.map(f=>{
@@ -2426,7 +2547,7 @@ function renderEntriesTableView(entries, opts={}){
       <td class="sticky-1"><b>${d.vehHtml}</b></td>
       <td>${fmtDT(e.fill_time||e.created_at)}</td>
       ${showMgr?`<td>${escapeHtml(e.manager_name||'—')}</td>`:''}
-      <td>${e.hmr??'—'}</td>
+      <td>${e.hmr != null && e.hmr !== '' ? fmtNum(e.hmr) : '—'}</td>
       <td><b>${(+e.quantity||0).toFixed(1)}</b> L</td>
       <td>${d.fillBadge}</td>
       <td>${e.stock!=null && e.stock!=='' ? (+e.stock).toFixed(1) : '—'}</td>
@@ -2466,7 +2587,7 @@ function renderEntriesTableView(entries, opts={}){
     <tbody>${rows}</tbody>
   </table></div>`;
 }
- 
+
 // Card view — one card per entry, stacked, mobile-friendly. No horizontal scroll.
 function renderEntriesCardsView(entries, opts={}){
   const showMgr = opts.showManager !== false;
@@ -2489,7 +2610,7 @@ function renderEntriesCardsView(entries, opts={}){
           ${showMgr?`<b>${escapeHtml(e.manager_name||'—')}</b> · `:''}${escapeHtml(d.src)} · ${d.fillBadge} ${d.editBadge}
         </div>
         <div class="entry-card-grid">
-          <div class="lbl">HMR / KM</div><div class="val">${e.hmr??'—'}</div>
+          <div class="lbl">HMR / KM</div><div class="val">${e.hmr != null && e.hmr !== '' ? fmtNum(e.hmr) : '—'}</div>
           <div class="lbl">Quantity</div><div class="val"><b>${(+e.quantity||0).toFixed(1)}</b> L</div>
           <div class="lbl">Veh Stock</div><div class="val">${e.stock!=null && e.stock!=='' ? (+e.stock).toFixed(1)+' L' : '—'}</div>
           <div class="lbl">Avg ${state.avgMode==='full2full'?'(F2F)':'(Trip)'}</div><div class="val">${d.avgCell}</div>
@@ -2507,7 +2628,7 @@ function renderEntriesCardsView(entries, opts={}){
   }).join('');
   return `<div class="entry-cards">${cards}</div>`;
 }
- 
+
 // ---------- OWNER: ALL ENTRIES ----------
 function renderAllEntries(page){
   page.innerHTML = `
@@ -2519,7 +2640,7 @@ function renderAllEntries(page){
           <button class="btn small" onclick="adminAddEntryModal()"><i class="ti ti-plus" style="vertical-align:-2px"></i> Add Entry</button>
         </div>
       </div>
- 
+
       <div class="form-section" style="background:#fafbff;border:1px solid #e0e7ff">
         <div class="form-section-label" style="margin-top:0">Filters</div>
         <div class="grid grid-2" style="margin-bottom:10px">
@@ -2538,7 +2659,7 @@ function renderAllEntries(page){
           <button class="btn xs ghost" onclick="setDateFilterPreset('month')">Last 30 days</button>
           <button class="btn xs ghost" onclick="setDateFilterPreset('clear')">Clear dates</button>
         </div>
- 
+
         <div class="grid grid-2" style="margin-bottom:10px">
           <div class="form-row" style="margin:0">
             <label>Manager</label>
@@ -2556,7 +2677,7 @@ function renderAllEntries(page){
             </div>
           </div>
         </div>
- 
+
         <div class="form-row" style="margin-bottom:0">
           <label>Show</label>
           <select id="filter-gps">
@@ -2566,12 +2687,12 @@ function renderAllEntries(page){
           </select>
         </div>
       </div>
- 
+
       ${avgModeToggleHtml()}
       <div id="entries-table">${renderEntriesTable(state.entries, {showManager:true})}</div>
     </div>
   `;
- 
+
   window._refilterAllEntries = function(){
     const gpsMode = ($('#filter-gps')||{}).value || 'all';
     const mid = $('#filter-mgr').value;
@@ -2598,14 +2719,14 @@ function renderAllEntries(page){
       return true;
     });
     const total = list.reduce((s,e)=>s+(+e.quantity||0), 0);
-    $('#filter-count').textContent = list.length + ' entries · ' + total.toFixed(1) + ' L total';
+    $('#filter-count').textContent = fmtNum(list.length) + ' entries · ' + fmtNum(total, 1) + ' L total';
     $('#entries-table').innerHTML = renderEntriesTable(list, {showManager:true, canEdit:true});
   };
- 
+
   // Wire searchable vehicle filter
   wireVehicleSearch('filter-vehicle-text', 'filter-vehicle', 'filter-vehicle-results',
     () => state.vehicles.slice().sort((a,b)=>(a.reg_no||a.name||'').localeCompare(b.reg_no||b.name||'')), null);
- 
+
   // Poll the hidden vehicle ID for changes
   let lastFilterVeh = '';
   const filterPoll = setInterval(() => {
@@ -2618,7 +2739,7 @@ function renderAllEntries(page){
   // Clear vehicle when search text is wiped
   const fvText = $('#filter-vehicle-text');
   if(fvText) fvText.addEventListener('input', () => { if(!fvText.value.trim()) $('#filter-vehicle').value=''; });
- 
+
   ['filter-gps','filter-mgr','filter-from','filter-to'].forEach(id=>{
     const el = $('#'+id); if(!el) return;
     el.addEventListener(id==='filter-search'?'input':'change', window._refilterAllEntries);
@@ -2636,7 +2757,7 @@ window.setDateFilterPreset = function(p){
   else if(p==='clear'){ fromEl.value=''; toEl.value=''; }
   if(window._refilterAllEntries) window._refilterAllEntries();
 };
- 
+
 // ---------- OWNER: VEHICLE ANALYSIS ----------
 function renderVehicleAnalysis(page){
   const activeVehicles = state.vehicles.filter(v => v.active !== false);
@@ -2649,7 +2770,7 @@ function renderVehicleAnalysis(page){
   }
   const veh = state.vehicles.find(v => v.id === state.analysisVehicleId);
   const stats = computeVehicleStats(veh.id);
- 
+
   page.innerHTML = `
     <div class="section">
       <div class="section-h"><h3>Vehicle Analysis</h3><span class="sub">Per-vehicle mileage trend & alerts</span></div>
@@ -2667,20 +2788,20 @@ function renderVehicleAnalysis(page){
     ${renderMileageChart(veh, stats)}
     ${renderVehicleEntryLog(veh, stats)}
   `;
- 
+
   $('#va-vehicle').addEventListener('change', ev=>{
     state.analysisVehicleId = ev.target.value;
     renderDash();
   });
 }
- 
+
 function computeVehicleStats(vehicleId){
   const veh = state.vehicles.find(v => v.id === vehicleId);
   const isMachine = !!(veh && veh.type === 'machine');
   const entries = state.entries
     .filter(e => e.vehicle_id === vehicleId)
     .sort((a,b) => new Date(a.fill_time||a.created_at) - new Date(b.fill_time||b.created_at));
- 
+
   const f2fPoints = [];
   for(const e of entries){
     const a = calcAvg(e, 'full2full');
@@ -2693,18 +2814,18 @@ function computeVehicleStats(vehicleId){
       });
     }
   }
- 
+
   const totalLiters = entries.reduce((s,e) => s + (+e.quantity||0), 0);
   const firstHmr = entries.length ? +entries[0].hmr||0 : 0;
   const lastHmr  = entries.length ? +entries[entries.length-1].hmr||0 : 0;
   const hmrDiff  = Math.max(0, lastHmr - firstHmr);
- 
+
   const values = f2fPoints.map(p => p.value);
   const avg   = values.length ? values.reduce((s,v)=>s+v,0)/values.length : null;
   const best  = values.length ? (isMachine ? Math.min(...values) : Math.max(...values)) : null;
   const worst = values.length ? (isMachine ? Math.max(...values) : Math.min(...values)) : null;
   const latest = f2fPoints.length ? f2fPoints[f2fPoints.length-1].value : null;
- 
+
   let latestDelta = null;
   if(latest != null && avg != null && avg > 0){
     latestDelta = ((latest - avg) / avg) * 100;
@@ -2712,15 +2833,15 @@ function computeVehicleStats(vehicleId){
   // For vehicles: lower km/L = worse; for machines: higher L/hr = worse.
   const isAlert = latestDelta != null &&
     (isMachine ? latestDelta > 15 : latestDelta < -15);
- 
+
   return { entries, f2fPoints, totalLiters, hmrDiff, avg, best, worst, latest, latestDelta, isAlert, isMachine };
 }
- 
+
 function renderVehicleStatsCards(veh, stats){
   const unit = stats.isMachine ? 'L/hr' : 'km/L';
   const hmrLabel = stats.isMachine ? 'Hours run' : 'KM covered';
   const noData = stats.f2fPoints.length === 0;
- 
+
   return `
     <div class="grid grid-3" style="margin-top:14px">
       <div class="kpi"><div class="lbl">Total entries</div><div class="val">${stats.entries.length}</div><div class="sub">${stats.totalLiters.toFixed(0)} L consumed</div></div>
@@ -2749,7 +2870,7 @@ function renderVehicleStatsCards(veh, stats){
       </div>` : ''}
   `;
 }
- 
+
 function renderMileageChart(veh, stats){
   const unit = stats.isMachine ? 'L/hr' : 'km/L';
   const pts = stats.f2fPoints;
@@ -2769,10 +2890,10 @@ function renderMileageChart(veh, stats){
   const yMax = maxV + span * 0.15;
   const xAt = i => PAD_L + (i / Math.max(1, pts.length - 1)) * innerW;
   const yAt = v => PAD_T + (1 - (v - yMin) / Math.max(0.0001, yMax - yMin)) * innerH;
- 
+
   const polylinePts = pts.map((p, i) => xAt(i) + ',' + yAt(p.value)).join(' ');
   const avgY = yAt(stats.avg);
- 
+
   const circles = pts.map((p, i) => {
     const x = xAt(i), y = yAt(p.value);
     const badThreshold = stats.isMachine ? stats.avg * 1.15 : stats.avg * 0.85;
@@ -2781,19 +2902,19 @@ function renderMileageChart(veh, stats){
     return `<g><circle cx="${x}" cy="${y}" r="5" fill="${color}" stroke="#fff" stroke-width="2"></circle>
       <text x="${x}" y="${y-10}" text-anchor="middle" font-size="10" font-weight="600" fill="${isBad?'#991b1b':'#0f172a'}">${p.value.toFixed(1)}</text></g>`;
   }).join('');
- 
+
   const yTickValues = [yMin, (yMin+yMax)/2, yMax];
   const yTicks = yTickValues.map(v => `
     <text x="${PAD_L-6}" y="${yAt(v)+3}" text-anchor="end" font-size="10" fill="#64748b">${v.toFixed(1)}</text>
     <line x1="${PAD_L}" x2="${W-PAD_R}" y1="${yAt(v)}" y2="${yAt(v)}" stroke="#e2e8f0" stroke-width="1"></line>
   `).join('');
- 
+
   const idxs = pts.length <= 4 ? pts.map((_,i)=>i) : [0, Math.floor(pts.length/3), Math.floor(2*pts.length/3), pts.length-1];
   const xLabels = idxs.map(i => {
     const d = new Date(pts[i].date);
     return `<text x="${xAt(i)}" y="${H - PAD_B + 18}" text-anchor="middle" font-size="10" fill="#64748b">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}</text>`;
   }).join('');
- 
+
   return `
     <div class="section" style="margin-top:14px">
       <div class="section-h">
@@ -2819,7 +2940,7 @@ function renderMileageChart(veh, stats){
     </div>
   `;
 }
- 
+
 function renderVehicleEntryLog(veh, stats){
   const recent = stats.entries.slice().reverse().slice(0, 20);
   return `
@@ -2832,7 +2953,7 @@ function renderVehicleEntryLog(veh, stats){
     </div>
   `;
 }
- 
+
 // ---------- OWNER: VEHICLES ----------
 function renderVehicles(page){
   const all = state.vehicles.slice();
@@ -2840,7 +2961,7 @@ function renderVehicles(page){
   all.sort((a,b) => (a.reg_no||a.name||'').localeCompare(b.reg_no||b.name||''));
   const vehicles = all.filter(v => v.type !== 'machine');
   const machines = all.filter(v => v.type === 'machine');
- 
+
   function tableHtml(list, kind){
     if(list.length === 0){
       return `<div class="empty" style="padding:20px"><div class="em">${kind==='machine'?'⚙️':'🚜'}</div>No ${kind}s yet</div>`;
@@ -2872,7 +2993,7 @@ function renderVehicles(page){
         </tr>`).join('')}
       </tbody></table></div>`;
   }
- 
+
   page.innerHTML = `
     <div class="section">
       <div class="section-h">
@@ -2880,18 +3001,23 @@ function renderVehicles(page){
         <button class="btn small" onclick="addVehicleModal()">+ Add</button>
       </div>
       ${state.vehicles.length===0
-        ? '<div class="empty"><div class="em">🚜</div>No vehicles yet. Add one to enable diesel entries.</div>'
+        ? `<div class="empty">
+            <div class="em">🚜</div>
+            <div style="font-weight:600;color:var(--text);margin-bottom:4px">No vehicles or machines added yet</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Add at least one to enable fuel entries by managers.</div>
+            <button class="btn small" onclick="addVehicleModal()">+ Add First Vehicle</button>
+          </div>`
         : `
           <div class="section-h" style="margin-top:6px;margin-bottom:6px"><h3 style="font-size:14px"><i class="ti ti-truck" style="vertical-align:-2px;margin-right:4px"></i>Vehicles</h3><span class="sub">${vehicles.length}</span></div>
           ${tableHtml(vehicles, 'vehicle')}
- 
+
           <div class="section-h" style="margin-top:18px;margin-bottom:6px"><h3 style="font-size:14px"><i class="ti ti-settings" style="vertical-align:-2px;margin-right:4px"></i>Machines</h3><span class="sub">${machines.length}</span></div>
           ${tableHtml(machines, 'machine')}
         `}
     </div>
   `;
 }
- 
+
 window.addVehicleModal = function(){
   openModal('Add Vehicle / Machine', `
     <div class="form-row"><label>Registration / Asset Number *</label><input id="vh-reg" placeholder="e.g. MP21AB1234 or JCB-3CX-12" autocomplete="off"></div>
@@ -2962,7 +3088,7 @@ window.confirmDeleteVehicle = function(id){
     deleteVehicle(id); renderDash(); toast('Deleted','ok');
   }
 };
- 
+
 // ---------- OWNER: MANAGERS ----------
 function renderManagers(page){
   page.innerHTML = `
@@ -2988,7 +3114,7 @@ function renderManagers(page){
     </div>
   `;
 }
- 
+
 window.editManagerModal = function(id){
   const m = state.managers.find(x=>x.id===id); if(!m) return;
   openModal(`Edit Manager #${id}`, `
@@ -3010,7 +3136,7 @@ window.saveManager = function(id){
   });
   closeModal(); renderDash(); toast('Manager updated','ok');
 };
- 
+
 // ---------- OWNER: CUSTOM FIELDS ----------
 function renderCustomFields(page){
   page.innerHTML = `
@@ -3090,7 +3216,7 @@ window.saveEditCF = function(id){
 window.confirmDeleteCF = function(id){
   if(confirm('Delete this custom field?')){ deleteCustomField(id); renderDash(); toast('Deleted','ok'); }
 };
- 
+
 // ---------- OWNER: EXPORT ----------
 function renderExport(page){
   const today = new Date().toISOString().slice(0,10);
@@ -3126,7 +3252,7 @@ window.doExport = function(){
     return true;
   });
   if(!list.length){ toast('No entries in range','err'); return; }
- 
+
   const rows = list.map(e=>{
     const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
     const row = {
@@ -3158,7 +3284,7 @@ window.doExport = function(){
     });
     return row;
   });
- 
+
   // Edit history sheet
   const editRows = [];
   list.forEach(e=>{
@@ -3173,14 +3299,14 @@ window.doExport = function(){
       });
     });
   });
- 
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Entries');
   if(editRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(editRows), 'Edit History');
   XLSX.writeFile(wb, `TASR_Fuel_${from}_to_${to}.xlsx`);
   toast('Excel downloaded','ok');
 };
- 
+
 // ---------- OWNER: AUDIT LOG ----------
 function renderAudit(page){
   const edited = state.entries.filter(e=>(e.edit_count||0)>0);
@@ -3210,7 +3336,7 @@ function renderAudit(page){
     </div>
   `;
 }
- 
+
 // ---------- OWNER: SETTINGS ----------
 function renderSettings(page){
   page.innerHTML = `
@@ -3224,7 +3350,7 @@ function renderSettings(page){
         </div>
       </label>
     </div>
- 
+
     <div class="section">
       <div class="section-h"><h3>Secret Unlock Code</h3></div>
       <div style="background:#ecfeff;border:1px solid #67e8f9;padding:12px;border-radius:8px;font-size:13px;color:var(--accent-dark)">
@@ -3233,7 +3359,7 @@ function renderSettings(page){
           : '⚠️ Currently using default code <b>3578</b>. Open 🔒 → Admin Panel → Security to set a custom hashed code.'}
       </div>
     </div>
- 
+
     <div class="section">
       <div class="section-h"><h3>Owner PIN</h3></div>
       <div class="form-row"><label>New owner PIN (4–8 digits)</label>
@@ -3244,7 +3370,7 @@ function renderSettings(page){
       </div>
       <button class="btn small" onclick="saveOwnerPwd()">Update PIN</button>
     </div>
- 
+
     <div class="section">
       <div class="section-h"><h3>Sync & Storage</h3></div>
       ${sb
@@ -3265,7 +3391,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v5.0</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v5.1</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -3315,11 +3441,11 @@ window.wipeLocalCache = function(){
   toast('Local cache wiped — reloading…','ok');
   setTimeout(()=>location.reload(), 600);
 };
- 
+
 // ============================================================
 // MANAGER VIEWS
 // ============================================================
- 
+
 // ---------- MANAGER: NEW ENTRY ----------
 function renderNewEntry(page){
   const activeVehicles = state.vehicles.filter(v=>v.active!==false);
@@ -3331,13 +3457,13 @@ function renderNewEntry(page){
   page.innerHTML = `
     <div class="section" style="padding:14px">
       <div class="section-h" style="margin-bottom:10px"><h3>New Fuel Entry</h3><span class="sub">${state.user.name}</span></div>
- 
+
       <!-- Live progress bar showing how many required fields are filled -->
       <div class="form-progress">
         <div class="form-progress-bar"><div class="form-progress-fill" id="ne-progress-fill" style="width:0%"></div></div>
         <div class="form-progress-text" id="ne-progress-text">0 / 0</div>
       </div>
- 
+
       <div class="form-section-label">Vehicle</div>
       <div class="form-section">
         <div class="form-row sd-wrap" style="margin-bottom:0">
@@ -3349,14 +3475,14 @@ function renderNewEntry(page){
         </div>
         <div id="ne-last-fill-ref" style="display:none;margin-top:10px"></div>
       </div>
- 
+
       <div class="form-section-label">Fuel</div>
       <div class="form-section">
         <div class="grid grid-2">
           <div class="form-row"><label>HMR / KM *</label><input type="number" step="0.1" id="ne-hmr" placeholder="e.g. 4521.5" inputmode="decimal"></div>
           <div class="form-row"><label>Quantity (L) *</label><input type="number" step="0.1" id="ne-qty" placeholder="e.g. 45.0" inputmode="decimal"></div>
         </div>
- 
+
         <div class="form-row">
           <label>Fill Type *</label>
           <div class="source-pills pill-grid-2" id="ne-fill-pills">
@@ -3365,13 +3491,13 @@ function renderNewEntry(page){
           </div>
           <div class="hint">"Full" entries are used for accurate mileage</div>
         </div>
- 
+
         <div class="form-row" style="margin-bottom:0">
           <label>Vehicle Stock <span style="color:var(--text-soft);text-transform:none;font-weight:400;letter-spacing:0">(Angul Naap)</span></label>
           <input type="number" step="0.1" id="ne-stock" placeholder="Dipstick reading of the vehicle tank" inputmode="decimal">
         </div>
       </div>
- 
+
       <div class="form-section-label">Source</div>
       <div class="form-section">
         ${renderBowserBanner()}
@@ -3385,7 +3511,7 @@ function renderNewEntry(page){
           <input type="text" id="ne-src-custom" placeholder="Specify source" style="margin-top:8px;display:none;width:100%;padding:10px 12px;border:1px solid var(--border-dark);border-radius:var(--radius-sm)">
         </div>
       </div>
- 
+
       <div class="form-section-label">Time</div>
       <div class="form-section">
         <div class="form-row" style="margin-bottom:0">
@@ -3397,7 +3523,7 @@ function renderNewEntry(page){
           <button type="button" class="now-btn" onclick="setTimeNow()"><i class="ti ti-clock"></i> Set to Now</button>
         </div>
       </div>
- 
+
       ${state.customFields.length ? `
         <div class="form-section-label">Other Info</div>
         <div class="form-section">
@@ -3409,17 +3535,17 @@ function renderNewEntry(page){
           `).join('')}
         </div>
       ` : ''}
- 
+
       <button class="btn" style="width:100%;padding:13px;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px" onclick="saveNewEntry()"><i class="ti ti-check"></i> Save Entry</button>
     </div>
   `;
- 
+
   // ===== Fill-state indicator — light green tint on filled fields =====
   function setupFillIndicator(){
     // All input/select fields in the New Entry form
     const fieldIds = ['ne-vehicle', 'ne-hmr', 'ne-qty', 'ne-date', 'ne-time', 'ne-stock', 'ne-src-custom'];
     state.customFields.forEach(f => fieldIds.push('ne-cf-' + f.id));
- 
+
     function updateOne(id){
       const el = document.getElementById(id);
       if(!el) return;
@@ -3431,14 +3557,14 @@ function renderNewEntry(page){
       if(row) row.classList.toggle('row-filled', filled);
       updateProgress();
     }
- 
+
     // Required field IDs for progress calc + pill groups + vehicle id (hidden)
     // Vehicle hidden field is checked via #ne-vehicle-id (not by the visible #ne-vehicle text)
     const requiredKeys = ['vehicle', 'hmr', 'qty', 'fill', 'stock-or-skip', 'date', 'time', 'src'];
     // stock is technically optional but useful for tracking; we count it as "filled-when-typed"
     // To keep progress meaningful for managers, count: vehicle, hmr, qty, fill, date, time, source
     state.customFields.filter(f => f.required).forEach(f => requiredKeys.push('cf-' + f.id));
- 
+
     function isFilled(key){
       switch(key){
         case 'vehicle': return !!(($('#ne-vehicle-id')||{}).value);
@@ -3458,7 +3584,7 @@ function renderNewEntry(page){
       }
       return false;
     }
- 
+
     function updateProgress(){
       // Count fields that count toward progress (exclude the "stock-or-skip" placeholder)
       const counted = requiredKeys.filter(k => k !== 'stock-or-skip');
@@ -3470,7 +3596,7 @@ function renderNewEntry(page){
       if(fillEl) fillEl.style.width = pct.toFixed(0) + '%';
       if(txtEl)  txtEl.textContent = done + ' / ' + total;
     }
- 
+
     fieldIds.forEach(id => {
       const el = document.getElementById(id);
       if(!el) return;
@@ -3478,16 +3604,16 @@ function renderNewEntry(page){
       el.addEventListener('input',  () => updateOne(id));
       el.addEventListener('change', () => updateOne(id));
     });
- 
+
     // Pill rows (Fill Type + Source) — NOT pre-filled. Will turn green only
     // when user actively picks a pill (handled in click handlers below).
- 
+
     // Expose progress updater for pill handlers to call
     window._neUpdateProgress = updateProgress;
     updateProgress(); // initial
   }
   setupFillIndicator();
- 
+
   // Helper: re-evaluate whether a pill-row has an active selection
   function refreshPillRowFilled(pillsSelector){
     const container = document.querySelector(pillsSelector);
@@ -3497,10 +3623,10 @@ function renderNewEntry(page){
     const hasActive = !!container.querySelector('.source-pill.active');
     row.classList.toggle('row-filled', hasActive);
   }
- 
+
   wireVehicleSearch('ne-vehicle', 'ne-vehicle-id', 'ne-vehicle-results',
     () => state.vehicles.filter(v=>v.active!==false), null);
- 
+
   // Helper: render reference card for last fill of selected vehicle + fill type
   function updateLastFillRef(){
     const vehId = ($('#ne-vehicle-id')||{}).value || '';
@@ -3538,13 +3664,13 @@ function renderNewEntry(page){
         <div class="ref-card-title">📋 Last ${fillType ? typeLabel+' ' : ''}entry — ${escapeHtml(vehName)} <span style="font-size:10px;background:#eef2ff;color:#4338ca;padding:1px 6px;border-radius:999px;margin-left:4px">${lastTypeBadge}</span></div>
         <div class="ref-card-meta">${fmtDT(last.fill_time||last.created_at)} · by <b>${escapeHtml(last.manager_name||'—')}</b></div>
         <div class="ref-card-data">
-          <span><span class="lbl">HMR</span> <b>${last.hmr??'—'}</b></span>
+          <span><span class="lbl">HMR</span> <b>${last.hmr != null && last.hmr !== '' ? fmtNum(last.hmr) : '—'}</b></span>
           <span><span class="lbl">Veh Stock</span> <b>${last.stock!=null && last.stock!=='' ? (+last.stock).toFixed(1)+' L' : '—'}</b></span>
           <span><span class="lbl">Filled</span> <b>${(+last.quantity||0).toFixed(1)} L</b></span>
         </div>
       </div>`;
   }
- 
+
   // source pill toggle — also marks the row as filled (green)
   page.querySelectorAll('#ne-src-pills .source-pill').forEach(p=>p.addEventListener('click', ()=>{
     page.querySelectorAll('#ne-src-pills .source-pill').forEach(x=>x.classList.remove('active'));
@@ -3561,7 +3687,7 @@ function renderNewEntry(page){
     updateLastFillRef();
     if(window._neUpdateProgress) window._neUpdateProgress();
   }));
- 
+
   // Watch vehicle hidden field for changes (wireVehicleSearch updates it on selection)
   const vehHidden = $('#ne-vehicle-id');
   if(vehHidden){
@@ -3583,7 +3709,7 @@ function renderNewEntry(page){
     }, 400);
   }
 }
- 
+
 // "Set to Now" button — fills date + time inputs with current local moment
 window.setTimeNow = function(){
   const now = new Date();
@@ -3594,7 +3720,7 @@ window.setTimeNow = function(){
   if(dEl){ dEl.value = localISO.slice(0,10); dEl.dispatchEvent(new Event('change', {bubbles:true})); }
   if(tEl){ tEl.value = localISO.slice(11,16); tEl.dispatchEvent(new Event('change', {bubbles:true})); }
 };
- 
+
 // Reusable searchable vehicle picker — `vehiclesOrGetter` may be an array OR a
 // function returning a fresh array (so the dropdown stays current even when the
 // form itself is not re-rendered).
@@ -3604,7 +3730,7 @@ function wireVehicleSearch(inputId, hiddenId, resultsId, vehiclesOrGetter, prese
   const res = document.getElementById(resultsId);
   if(!inp || !hid || !res) return;
   const getList = () => typeof vehiclesOrGetter === 'function' ? vehiclesOrGetter() : vehiclesOrGetter;
- 
+
   function render(q){
     const vehicles = getList();
     const query = (q||'').toLowerCase().trim();
@@ -3631,7 +3757,7 @@ function wireVehicleSearch(inputId, hiddenId, resultsId, vehiclesOrGetter, prese
     }
     res.classList.add('show');
   }
- 
+
   function selectVehicle(v){
     inp.value = (v.reg_no || v.name) + (v.name && v.name!==v.reg_no ? ' — '+v.name : '');
     hid.value = v.id;
@@ -3641,12 +3767,12 @@ function wireVehicleSearch(inputId, hiddenId, resultsId, vehiclesOrGetter, prese
     inp.dispatchEvent(new Event('change', {bubbles: true}));
     hid.dispatchEvent(new Event('change', {bubbles: true}));
   }
- 
+
   if(preselectId){
     const v = getList().find(x=>x.id===preselectId);
     if(v) selectVehicle(v);
   }
- 
+
   inp.addEventListener('focus', ()=>render(''));
   inp.addEventListener('input', ()=>{
     hid.value = '';
@@ -3672,7 +3798,7 @@ function wireVehicleSearch(inputId, hiddenId, resultsId, vehiclesOrGetter, prese
     if(v) selectVehicle(v);
   });
 }
- 
+
 window.saveNewEntry = function(){
   const vehId = $('#ne-vehicle-id').value;
   const veh = state.vehicles.find(v=>v.id===vehId);
@@ -3698,7 +3824,7 @@ window.saveNewEntry = function(){
   const src = srcEl.dataset.src;
   const srcCustom = src==='other' ? $('#ne-src-custom').value.trim() : '';
   if(src==='other' && !srcCustom){ toast('Specify "Other" source','err'); return; }
- 
+
   // Bowser stock validation
   if(src === 'bowser_t1' || src === 'bowser_t2'){
     const tank = src.replace('bowser_','');
@@ -3708,7 +3834,7 @@ window.saveNewEntry = function(){
       return;
     }
   }
- 
+
   const custom_data = {};
   for(const f of state.customFields){
     const el = $('#ne-cf-'+f.id);
@@ -3716,7 +3842,7 @@ window.saveNewEntry = function(){
     if(f.required && !v){ toast(f.field_label+' required','err'); return; }
     if(v) custom_data[f.field_key] = v;
   }
- 
+
   addEntry({
     manager_id: state.user.id, manager_name: state.user.name,
     vehicle_id: veh.id, vehicle_name: veh.reg_no || veh.name,
@@ -3729,7 +3855,7 @@ window.saveNewEntry = function(){
   state.activeTab = 'my-entries';
   renderDash();
 };
- 
+
 // ---------- MANAGER: MY ENTRIES ----------
 function renderMyEntries(page){
   const mine = state.entries.filter(e => e.manager_id===state.user.id);
@@ -3737,21 +3863,21 @@ function renderMyEntries(page){
   const todayCount = mine.filter(e=>new Date(e.fill_time||e.created_at).getTime() >= today.getTime()).length;
   const todayLiters = mine.filter(e=>new Date(e.fill_time||e.created_at).getTime() >= today.getTime()).reduce((s,e)=>s+(+e.quantity||0),0);
   const totalLiters = mine.reduce((s,e)=>s+(+e.quantity||0),0);
- 
+
   // Build vehicle filter dropdown from vehicles the manager has actually fueled (more useful than full list)
   const usedVehIds = [...new Set(mine.map(e => e.vehicle_id).filter(Boolean))];
   const usedVehicles = usedVehIds
     .map(id => state.vehicles.find(v => v.id === id))
     .filter(Boolean)
     .sort((a,b) => (a.reg_no||a.name||'').localeCompare(b.reg_no||b.name||''));
- 
+
   page.innerHTML = `
     <div class="grid grid-3">
       <div class="kpi"><div class="lbl">Today</div><div class="val">${todayCount}</div><div class="sub">${todayLiters.toFixed(1)} L</div></div>
       <div class="kpi"><div class="lbl">Total entries</div><div class="val">${mine.length}</div><div class="sub">All time</div></div>
       <div class="kpi"><div class="lbl">Total volume</div><div class="val">${totalLiters.toFixed(0)} L</div><div class="sub">Issued by you</div></div>
     </div>
- 
+
     <div class="section" style="margin-top:14px">
       <div class="section-h"><h3>Bowser Stock</h3><span class="sub">Auto-updates after every issue</span></div>
       <div class="grid grid-2">
@@ -3759,7 +3885,7 @@ function renderMyEntries(page){
         ${renderBowserCard('t2', false)}
       </div>
     </div>
- 
+
     <div class="section" style="margin-top:14px">
       <div class="section-h"><h3>My Entries</h3><span class="sub" id="me-count"></span></div>
       <div class="grid grid-3" style="margin-bottom:10px">
@@ -3790,11 +3916,11 @@ function renderMyEntries(page){
       <div id="me-table">${renderEntriesTable(mine, {showManager:false, canEdit:true})}</div>
     </div>
   `;
- 
+
   // Wire the searchable vehicle picker — uses the existing wireVehicleSearch helper.
   // Only vehicles the manager has actually fueled appear in suggestions (more useful).
   wireVehicleSearch('me-veh-text', 'me-veh', 'me-veh-results', () => usedVehicles, null);
- 
+
   // The hidden field is set by the picker — poll for changes since it's not a native event
   let lastMeVeh = '';
   const meVehPoll = setInterval(() => {
@@ -3810,7 +3936,7 @@ function renderMyEntries(page){
       $('#me-veh').value = '';
     }
   });
- 
+
   window._refilterMyEntries = function(){
     const vid = $('#me-veh').value;
     const vtxt = ($('#me-veh-text')||{}).value || '';
@@ -3826,7 +3952,7 @@ function renderMyEntries(page){
       return true;
     });
     const total = filtered.reduce((s,e)=>s+(+e.quantity||0), 0);
-    const cnt = $('#me-count'); if(cnt) cnt.textContent = filtered.length + ' entries · ' + total.toFixed(1) + ' L';
+    const cnt = $('#me-count'); if(cnt) cnt.textContent = fmtNum(filtered.length) + ' entries · ' + fmtNum(total, 1) + ' L';
     $('#me-table').innerHTML = renderEntriesTable(filtered, {showManager:false, canEdit:true});
   };
   ['me-from','me-to'].forEach(id=>{
@@ -3835,7 +3961,7 @@ function renderMyEntries(page){
   });
   window._refilterMyEntries();
 }
- 
+
 window.setMyEntriesPreset = function(p){
   const fromEl = $('#me-from'), toEl = $('#me-to');
   if(!fromEl || !toEl) return;
@@ -3851,14 +3977,14 @@ window.setMyEntriesPreset = function(p){
   }
   if(window._refilterMyEntries) window._refilterMyEntries();
 };
- 
+
 window.editEntryModal = function(id){
   const e = state.entries.find(x=>x.id===id); if(!e) return;
   const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
   const t = new Date(e.fill_time||e.created_at);
   const tLocal = new Date(t.getTime() - t.getTimezoneOffset()*60000).toISOString().slice(0,16);
   const activeVehicles = state.vehicles.filter(v=>v.active!==false || v.id===e.vehicle_id);
- 
+
   openModal('Edit Entry', `
     <div class="form-row sd-wrap"><label>Vehicle</label>
       <input type="text" id="ee-vehicle" placeholder="Search by reg number, type, or name…" autocomplete="off">
@@ -3901,22 +4027,22 @@ window.editEntryModal = function(id){
     `).join('')}
     <button class="btn" style="width:100%" onclick="saveEditEntry('${id}')">Save Changes</button>
   `);
- 
+
   // wire searchable vehicle picker with pre-selection
   wireVehicleSearch('ee-vehicle', 'ee-vehicle-id', 'ee-vehicle-results', activeVehicles, e.vehicle_id);
- 
+
   // wire source toggle
   $('#ee-src').addEventListener('change', ev=>{
     $('#ee-src-custom').style.display = ev.target.value==='other' ? '' : 'none';
   });
- 
+
   // wire fill-type pills
   document.querySelectorAll('#ee-fill-pills .source-pill').forEach(p=>p.addEventListener('click', ()=>{
     document.querySelectorAll('#ee-fill-pills .source-pill').forEach(x=>x.classList.remove('active'));
     p.classList.add('active');
   }));
 };
- 
+
 window.saveEditEntry = function(id){
   const e = state.entries.find(x=>x.id===id); if(!e) return;
   const vehId = $('#ee-vehicle-id').value;
@@ -3925,7 +4051,7 @@ window.saveEditEntry = function(id){
   const src = $('#ee-src').value;
   const srcCustom = src==='other' ? $('#ee-src-custom').value.trim() : '';
   const newQty = parseFloat($('#ee-qty').value) || 0;
- 
+
   // Bowser stock validation — account for this entry's existing contribution
   if(src === 'bowser_t1' || src === 'bowser_t2'){
     const tank = src.replace('bowser_','');
@@ -3937,13 +4063,13 @@ window.saveEditEntry = function(id){
       return;
     }
   }
- 
+
   const custom_data = {...(e.custom_data||{})};
   state.customFields.forEach(f=>{
     const el = $('#ee-cf-'+f.id);
     if(el){ const v = el.value.trim(); if(v) custom_data[f.field_key]=v; else delete custom_data[f.field_key]; }
   });
- 
+
   // Consumption (owner only — field present in edit modal for owner)
   const patch = {
     vehicle_id:veh.id, vehicle_name: veh.reg_no || veh.name,
@@ -3963,7 +4089,7 @@ window.saveEditEntry = function(id){
   updateEntry(id, patch);
   closeModal(); renderDash(); toast('Entry updated','ok');
 };
- 
+
 // ----- DELETE ENTRY (owner only, with Bowser refund warning) -----
 window.confirmDeleteEntry = function(id){
   if(!state.user || state.user.role !== 'owner'){ toast('Only Admin can delete entries','err'); return; }
@@ -3975,7 +4101,7 @@ window.confirmDeleteEntry = function(id){
   const refundLine = isBowser
     ? `Bowser ${tankLabel} stock will be refunded by ${(+e.quantity||0).toFixed(1)} L.`
     : `No bowser refund (source: ${e.source||'—'}).`;
- 
+
   openModal('Delete Entry', `
     <div style="background:#fef2f2;border-left:3px solid var(--danger);padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:14px">
       <div style="font-weight:600;color:var(--danger);margin-bottom:6px">⚠️ Permanent deletion</div>
@@ -3998,7 +4124,7 @@ window.doDeleteEntry = function(id){
   else renderDash();
   toast('Entry deleted','ok');
 };
- 
+
 // ----- ADMIN: ADD ENTRY (full form modal, back-dating + manager-on-behalf) -----
 window.adminAddEntryModal = function(){
   if(!state.user || state.user.role !== 'owner'){ toast('Only Admin can add entries this way','err'); return; }
@@ -4007,7 +4133,7 @@ window.adminAddEntryModal = function(){
   const activeMgrs = state.managers.filter(m=>m.active);
   // Local datetime string for datetime-local input
   const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
- 
+
   openModal('Add Entry (Admin)', `
     <div class="form-row">
       <label>On behalf of *</label>
@@ -4060,11 +4186,11 @@ window.adminAddEntryModal = function(){
     `).join('')}
     <button class="btn" style="width:100%;margin-top:6px" onclick="adminSaveEntry()">Add Entry</button>
   `);
- 
+
   // wire vehicle search inside modal
   wireVehicleSearch('ae-vehicle', 'ae-vehicle-id', 'ae-vehicle-results',
     () => state.vehicles.filter(v=>v.active!==false), null);
- 
+
   // wire pill toggles
   setTimeout(() => {
     function aeRefreshRow(selector){
@@ -4086,7 +4212,7 @@ window.adminAddEntryModal = function(){
     }));
   }, 50);
 };
- 
+
 window.adminSaveEntry = function(){
   const vid = ($('#ae-vehicle-id')||{}).value || '';
   if(!vid){ toast('Pick a vehicle','err'); return; }
@@ -4094,7 +4220,7 @@ window.adminSaveEntry = function(){
   if(isNaN(hmr)){ toast('HMR/KM required','err'); return; }
   const qty = parseFloat($('#ae-qty').value);
   if(isNaN(qty) || qty<=0){ toast('Quantity required','err'); return; }
- 
+
   const mgrSel = $('#ae-mgr').value;
   let mgrId, mgrName;
   if(mgrSel === 'admin'){
@@ -4105,11 +4231,11 @@ window.adminSaveEntry = function(){
     const m = state.managers.find(x=>x.id===mgrId);
     mgrName = m ? m.name : 'Unknown';
   }
- 
+
   const veh = state.vehicles.find(v=>v.id===vid);
   const timeStr = $('#ae-time').value;
   const time = timeStr ? new Date(timeStr).toISOString() : new Date().toISOString();
- 
+
   const stockVal = parseFloat($('#ae-stock').value);
   const sourceEl = document.querySelector('#ae-src-pills .source-pill.active');
   if(!sourceEl){ toast('Select Source','err'); return; }
@@ -4117,14 +4243,14 @@ window.adminSaveEntry = function(){
   const fillEl = document.querySelector('#ae-fill-pills .source-pill.active');
   if(!fillEl){ toast('Select Fill Type','err'); return; }
   const fillType = fillEl.dataset.fill;
- 
+
   const customData = {};
   state.customFields.forEach(f => {
     const el = $('#ae-cf-'+f.id); if(!el) return;
     const v = (el.value || '').trim();
     if(v) customData[f.field_key] = v;
   });
- 
+
   addEntry({
     manager_id: mgrId,
     manager_name: mgrName,
@@ -4140,13 +4266,13 @@ window.adminSaveEntry = function(){
     fill_time: time,
     created_at: time,
   });
- 
+
   closeModal();
   if(window._refilterAllEntries) window._refilterAllEntries();
   else renderDash();
   toast('Entry added by Admin','ok');
 };
- 
+
 // ----- Consumption quick-add modal (owner only) -----
 window.setConsumptionModal = function(id){
   if(!state.user || state.user.role !== 'owner'){ toast('Only Admin can set GPS consumption','err'); return; }
@@ -4154,7 +4280,7 @@ window.setConsumptionModal = function(id){
   const veh = state.vehicles.find(v=>v.id===e.vehicle_id);
   const vehDisplay = veh ? (veh.reg_no || veh.name) : (e.vehicle_name || '—');
   const currentVal = (e.consumption != null && e.consumption !== '') ? (+e.consumption).toString() : '';
- 
+
   openModal('Set GPS Consumption', `
     <div style="background:var(--surface);padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px">
       <div><b>${escapeHtml(vehDisplay)}</b> · ${fmtDT(e.fill_time||e.created_at)}</div>
@@ -4175,7 +4301,7 @@ window.setConsumptionModal = function(id){
     if(el){ el.focus(); el.select(); el.addEventListener('keydown', ev => { if(ev.key === 'Enter') saveConsumption(id, false); }); }
   }, 80);
 };
- 
+
 window.saveConsumption = function(id, clear){
   const e = state.entries.find(x=>x.id===id); if(!e) return;
   let val = null;
@@ -4191,10 +4317,10 @@ window.saveConsumption = function(id, clear){
   const scrollLeft = tableEl ? tableEl.scrollLeft : 0;
   const scrollTop  = tableEl ? tableEl.scrollTop  : 0;
   const pageScroll = window.scrollY;
- 
+
   updateEntry(id, { consumption: val });
   closeModal();
- 
+
   // Re-render ONLY the entries table (not the whole dashboard) to preserve
   // filters, search dropdown state, scroll position, etc.
   if(window._refilterAllEntries){
@@ -4204,7 +4330,7 @@ window.saveConsumption = function(id, clear){
   } else {
     renderDash();
   }
- 
+
   // Restore scroll positions after the DOM updates
   requestAnimationFrame(() => {
     const newTableEl = document.querySelector('#entries-table .sticky-table');
@@ -4214,10 +4340,10 @@ window.saveConsumption = function(id, clear){
     }
     window.scrollTo({ top: pageScroll, behavior: 'instant' });
   });
- 
+
   toast(val === null ? 'GPS Consumption cleared' : 'GPS Consumption saved','ok');
 };
- 
+
 // ============================================================
 // BOOT
 // ============================================================
@@ -4234,14 +4360,14 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.0</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.1</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
 calcRender();
 bootScreen();
 updateSyncPill();
- 
+
 // Initial pull from server, then periodic sync
 (async ()=>{
   if(sb){
