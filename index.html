@@ -726,10 +726,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v5.4 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v5.5 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v5.4</span>
+    <span style="opacity:.35;margin-left:6px">v5.5</span>
   </div>
 </div>
 
@@ -771,7 +771,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.4</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.5</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -888,6 +888,7 @@ const FEATURES = [
   { key:'run_delta',        label:'Run distance below Avg',        desc:'Small "X km run / Y hrs run" subtext below the Avg column in entry tables.' },
   { key:'gps_column',       label:'GPS column in Vehicles list',   desc:'Show a dedicated GPS badge column in the Vehicles & Machines list.' },
   { key:'anomaly_detection',label:'Mileage anomaly detection',     desc:'Tint entry rows when their F2F mileage deviates from the vehicle\'s baseline. Thresholds configurable below.' },
+  { key:'auto_gps_nongps',  label:'Auto-fill GPS Cons for non-GPS', desc:'Non-GPS vehicles show their F2F consumption in the GPS column (with a small "(F2F)" tag). Admin can still override per entry. Display-only — does not modify stored data.' },
 ];
 function isFeatureEnabled(key){
   // Defaults to true if the setting has never been set.
@@ -1226,7 +1227,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v5.4] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v5.5] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -2788,19 +2789,40 @@ function buildEntryDisplay(e){
   const f2fCell = (f2f && f2f.value !== undefined)
     ? `<b style="color:var(--accent-dark)">${f2f.consumed.toFixed(1)} L</b><br><span style="font-size:10px;color:var(--text-soft)">${f2f.value.toFixed(2)} ${unit}</span>`
     : `<span style="color:var(--text-soft);cursor:help;border-bottom:1px dotted var(--text-soft)" title="${escapeHtml(f2f && f2f.reason ? f2f.reason : 'Cannot compute')}">—</span>`;
-  // GPS Consumption — admin-entered; in LITERS (matches F2F unit for direct comparison)
+  // GPS Consumption — admin-entered; in LITERS (matches F2F unit for direct comparison).
+  // For non-GPS vehicles, if the auto-fill feature is on and no real GPS value exists,
+  // we DISPLAY the F2F consumption value with a small "(F2F)" tag so reports look
+  // complete. The database is NOT modified — admin's actual data remains untouched.
+  const hasRealGps   = e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption);
+  const autoFill     = isFeatureEnabled('auto_gps_nongps');
+  const isNonGps     = veh && !veh.gps_enabled;
+  // f2f is already computed above for the F2F column — reuse the consumed value
+  const f2fConsumed  = (f2f && f2f.consumed != null) ? f2f.consumed : null;
+  const useAutoFill  = !hasRealGps && autoFill && isNonGps && f2fConsumed != null;
+
   let gpsCell;
-  if(e.consumption != null && e.consumption !== '' && !isNaN(+e.consumption)){
+  if(hasRealGps){
     const cv = (+e.consumption).toFixed(2);
     gpsCell = isOwner
       ? `<b style="color:var(--accent-dark)">${cv}</b> <span style="font-size:10px;color:var(--text-soft)">L</span> <button class="btn xs ghost" style="font-size:10px;padding:1px 5px;margin-left:2px" onclick="setConsumptionModal('${e.id}')" title="Edit GPS consumption">✎</button>`
       : `<b style="color:var(--accent-dark)">${cv}</b> <span style="font-size:10px;color:var(--text-soft)">L</span>`;
+  } else if(useAutoFill){
+    // Auto-derived from F2F — distinct visual cue: muted text + small "(F2F)" badge.
+    // Admin can still tap ✎ to override with a real reading.
+    const cv = f2fConsumed.toFixed(2);
+    const overrideBtn = isOwner
+      ? ` <button class="btn xs ghost" style="font-size:10px;padding:1px 5px;margin-left:2px" onclick="setConsumptionModal('${e.id}')" title="Override with actual GPS reading">✎</button>`
+      : '';
+    gpsCell = `<span style="color:var(--text-muted)" title="Auto-derived from F2F consumption (non-GPS vehicle)">${cv}</span> <span style="font-size:10px;color:var(--text-soft);background:#f1f5f9;padding:1px 5px;border-radius:4px;font-weight:600">F2F</span>${overrideBtn}`;
   } else {
     gpsCell = isOwner
       ? `<button class="btn xs ghost" style="font-size:11px;padding:2px 8px" onclick="setConsumptionModal('${e.id}')">+ Add</button>`
       : '<span style="color:var(--text-soft)">—</span>';
   }
+
   // Diff — GPS minus F2F. Both in LITERS. Simple subtraction.
+  // When GPS is auto-filled from F2F, diff is tautologically 0 — show it explicitly
+  // in muted text so reports stay complete without misleading anyone.
   const diff = calcConsDiff(e);
   let diffCell = '<span style="color:var(--text-soft)">—</span>';
   if(diff){
@@ -2808,6 +2830,8 @@ function buildEntryDisplay(e){
                 : diff.severity === 'warn' ? '#a16207' : 'var(--danger)';
     const sign = diff.delta > 0 ? '+' : '';
     diffCell = `<b style="color:${color}" title="GPS − F2F (Litres)">${sign}${diff.delta.toFixed(2)} L</b><br><span style="font-size:10px;color:var(--text-soft)">${sign}${diff.pct.toFixed(1)}%</span>`;
+  } else if(useAutoFill){
+    diffCell = `<span style="color:var(--text-soft)" title="Auto-filled GPS = F2F, so diff is zero by definition">0.00 L<br><span style="font-size:10px">0.0%</span></span>`;
   }
   return { veh, vehDisplay, vehHtml, isGps, unit, src, editBadge, fillBadge, avgCell, partialCell, f2fCell, gpsCell, diffCell, anomaly };
 }
@@ -3680,7 +3704,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v5.4</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v5.5</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -4649,7 +4673,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.4</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.5</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
