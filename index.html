@@ -538,6 +538,32 @@ body.lightbg .admin-btn{
 .badge.warn{background:#fef3c7;color:#92400e}
 .badge.gps{background:#d1fae5;color:#059669;font-weight:700}
 
+/* ============================================================
+   ANOMALY ROW TINT — full-row background highlight when an entry's
+   F2F mileage deviates from the vehicle's baseline. Severities:
+     medium   = amber  (10-20% off baseline by default)
+     high     = orange (20-30%)
+     critical = red    (30%+)
+   Sticky-1 (Vehicle column) needs its own override because it has
+   its own background to stay visible while horizontally scrolling.
+   ============================================================ */
+.sticky-table tbody tr.row-anomaly-medium > td,
+.sticky-table tbody tr.row-anomaly-medium > td.sticky-1   { background: #fef3c7 !important; }
+.sticky-table tbody tr.row-anomaly-high > td,
+.sticky-table tbody tr.row-anomaly-high > td.sticky-1     { background: #fed7aa !important; }
+.sticky-table tbody tr.row-anomaly-critical > td,
+.sticky-table tbody tr.row-anomaly-critical > td.sticky-1 { background: #fecaca !important; }
+.sticky-table tbody tr.row-anomaly-medium:hover > td,
+.sticky-table tbody tr.row-anomaly-medium:hover > td.sticky-1   { background: #fde68a !important; }
+.sticky-table tbody tr.row-anomaly-high:hover > td,
+.sticky-table tbody tr.row-anomaly-high:hover > td.sticky-1     { background: #fdba74 !important; }
+.sticky-table tbody tr.row-anomaly-critical:hover > td,
+.sticky-table tbody tr.row-anomaly-critical:hover > td.sticky-1 { background: #fca5a5 !important; }
+/* Cards mode equivalent */
+.entry-card.card-anomaly-medium   { background:#fef3c7; border-color:#fcd34d }
+.entry-card.card-anomaly-high     { background:#fed7aa; border-color:#fb923c }
+.entry-card.card-anomaly-critical { background:#fecaca; border-color:#f87171 }
+
 /* Serial number in vehicles/machines list — accent color, slight pill */
 .serial-no{
   display:inline-block;padding:2px 8px;
@@ -700,10 +726,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v5.3 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v5.4 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v5.3</span>
+    <span style="opacity:.35;margin-left:6px">v5.4</span>
   </div>
 </div>
 
@@ -745,7 +771,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.3</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.4</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -861,6 +887,7 @@ const FEATURES = [
   { key:'vehicle_clickable',label:'Clickable vehicle drill-down',  desc:'Click a vehicle reg-no in the Vehicles list to jump straight to its Analysis page.' },
   { key:'run_delta',        label:'Run distance below Avg',        desc:'Small "X km run / Y hrs run" subtext below the Avg column in entry tables.' },
   { key:'gps_column',       label:'GPS column in Vehicles list',   desc:'Show a dedicated GPS badge column in the Vehicles & Machines list.' },
+  { key:'anomaly_detection',label:'Mileage anomaly detection',     desc:'Tint entry rows when their F2F mileage deviates from the vehicle\'s baseline. Thresholds configurable below.' },
 ];
 function isFeatureEnabled(key){
   // Defaults to true if the setting has never been set.
@@ -903,6 +930,12 @@ const state = {
     admin_owner_enabled: 'true',
     admin_disable_message: 'Service temporarily unavailable. Please contact your administrator.',
     admin_pages_disabled: '',
+    // Anomaly detection thresholds — % deviation from baseline that triggers
+    // each severity level. Administrator can change these in the Admin Panel.
+    anomaly_baseline_window:    '5',     // last N F2F fills used as baseline
+    anomaly_threshold_medium:   '10',    // amber tint
+    anomaly_threshold_high:     '20',    // orange tint
+    anomaly_threshold_critical: '30',    // red tint
   },
   pendingOps: [],          // offline queue
   online: navigator.onLine,
@@ -1193,7 +1226,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v5.3] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v5.4] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1366,6 +1399,33 @@ window.openAdminPanel = function(){
       </div>
     </div>
 
+    <div style="margin-top:14px;padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px">
+      <div style="font-weight:700;color:#9a3412;margin-bottom:4px">🚨 Anomaly Detection Thresholds</div>
+      <div style="font-size:12px;color:#9a3412;margin-bottom:10px">
+        When an entry's Full-to-Full mileage deviates from this vehicle's baseline by these amounts, the row gets a colored tint. Baseline = average of the last N F2F fills for that vehicle.<br>
+        ⚠ Requires the <b>Mileage anomaly detection</b> feature to be enabled above.
+      </div>
+      <div class="grid grid-2" style="gap:8px">
+        <div class="form-row" style="margin:0">
+          <label>Baseline window (last N F2F fills)</label>
+          <input type="number" id="ap-anom-window" value="${escapeHtml(state.settings.anomaly_baseline_window || '5')}" min="3" max="20">
+        </div>
+        <div class="form-row" style="margin:0">
+          <label>🟡 Amber tint at (% deviation)</label>
+          <input type="number" id="ap-anom-medium" value="${escapeHtml(state.settings.anomaly_threshold_medium || '10')}" min="5" max="50">
+        </div>
+        <div class="form-row" style="margin:0">
+          <label>🟠 Orange tint at (% deviation)</label>
+          <input type="number" id="ap-anom-high" value="${escapeHtml(state.settings.anomaly_threshold_high || '20')}" min="10" max="60">
+        </div>
+        <div class="form-row" style="margin:0">
+          <label>🔴 Red tint at (% deviation)</label>
+          <input type="number" id="ap-anom-critical" value="${escapeHtml(state.settings.anomaly_threshold_critical || '30')}" min="15" max="80">
+        </div>
+      </div>
+      <div class="hint" style="margin-top:6px">Tip: Keep thresholds in ascending order (amber &lt; orange &lt; red). Lower values flag more entries; higher values flag only extreme cases.</div>
+    </div>
+
     <div style="background:#fef3c7;padding:14px;border-radius:8px;margin-bottom:14px;border:1px solid #fcd34d;margin-top:14px">
       <div style="font-weight:700;margin-bottom:4px;color:#92400e">🔒 Security</div>
       <div style="font-size:12px;color:#78350f;margin-bottom:10px">Change admin password and calculator unlock code. Both stored as one-way hashes — even with database access nobody can read them. Set these immediately on first install.</div>
@@ -1491,6 +1551,15 @@ window.saveAdminSettings = function(){
   Array.from(document.querySelectorAll('.ap-feature')).forEach(cb => {
     updateSetting('feature_'+cb.dataset.feature, cb.checked ? 'true' : 'false');
   });
+  // Anomaly detection thresholds — validate basic sanity then save
+  const win  = parseInt($('#ap-anom-window').value, 10);
+  const tMed = parseFloat($('#ap-anom-medium').value);
+  const tHi  = parseFloat($('#ap-anom-high').value);
+  const tCr  = parseFloat($('#ap-anom-critical').value);
+  if(!isNaN(win)  && win  >= 3 && win  <= 20) updateSetting('anomaly_baseline_window',    String(win));
+  if(!isNaN(tMed) && tMed >= 1 && tMed <= 80) updateSetting('anomaly_threshold_medium',   String(tMed));
+  if(!isNaN(tHi)  && tHi  >= 1 && tHi  <= 80) updateSetting('anomaly_threshold_high',     String(tHi));
+  if(!isNaN(tCr)  && tCr  >= 1 && tCr  <= 95) updateSetting('anomaly_threshold_critical', String(tCr));
   closeModal();
   renderDash();          // re-render so toggled features take effect immediately
   toast('Administration settings saved','ok');
@@ -2298,6 +2367,68 @@ function calcAvg(entry, mode){
   return { value, formatted: value.toFixed(2)+' '+unit, meaningful: true, mode, span: between.length, runDelta: diff, isMachine };
 }
 
+// ANOMALY DETECTION — flags entries whose Full-to-Full mileage deviates
+// significantly from the vehicle's recent baseline. Always uses F2F values
+// regardless of the current avgMode toggle (Trip vs F2F) since F2F is the
+// only reliable per-fill mileage measure.
+//   baseline = mean of the last N F2F-mode avgs for this vehicle (excluding current)
+//   deviation% = (this.value − baseline) / baseline × 100
+// Thresholds are admin-configurable in the Administrator Panel.
+function detectAnomaly(entry){
+  if(!isFeatureEnabled('anomaly_detection')) return null;
+  if(entry.fill_type !== 'full') return null;       // partial fills excluded
+  const myAvg = calcAvg(entry, 'full2full');
+  if(!myAvg || !myAvg.value) return null;
+
+  // Build baseline from previous F2F fills for this vehicle (most recent first)
+  const t = new Date(entry.fill_time || entry.created_at).getTime();
+  const priorFulls = state.entries
+    .filter(e => e.vehicle_id === entry.vehicle_id
+              && e.id !== entry.id
+              && e.fill_type === 'full'
+              && new Date(e.fill_time || e.created_at).getTime() < t)
+    .sort((a,b) => new Date(b.fill_time||b.created_at) - new Date(a.fill_time||a.created_at));
+
+  const window = parseInt(state.settings.anomaly_baseline_window, 10) || 5;
+  const sampleEntries = priorFulls.slice(0, window);
+  const baselineValues = sampleEntries
+    .map(e => calcAvg(e, 'full2full'))
+    .filter(a => a && a.value > 0)
+    .map(a => a.value);
+
+  // Require at least 3 prior data points — otherwise the baseline is too unstable
+  if(baselineValues.length < 3) return null;
+
+  const baseline = baselineValues.reduce((s,v) => s+v, 0) / baselineValues.length;
+  if(baseline <= 0) return null;
+  const deviation = ((myAvg.value - baseline) / baseline) * 100;
+  const absDev = Math.abs(deviation);
+
+  const tMed  = parseFloat(state.settings.anomaly_threshold_medium)   || 10;
+  const tHigh = parseFloat(state.settings.anomaly_threshold_high)     || 20;
+  const tCrit = parseFloat(state.settings.anomaly_threshold_critical) || 30;
+
+  let severity = null;
+  if(absDev >= tCrit)      severity = 'critical';
+  else if(absDev >= tHigh) severity = 'high';
+  else if(absDev >= tMed)  severity = 'medium';
+  if(!severity) return null;
+
+  // For vehicles, LOWER mileage (km/L) than baseline = worse.
+  // For machines, HIGHER consumption (L/hr) than baseline = worse.
+  const isBadDirection = myAvg.isMachine ? deviation > 0 : deviation < 0;
+  const unit = myAvg.isMachine ? 'L/hr' : 'km/L';
+  return {
+    baseline,
+    deviation,         // signed percentage
+    severity,
+    isBadDirection,
+    sampleSize: baselineValues.length,
+    unit,
+    tooltip: `Baseline ${baseline.toFixed(2)} ${unit} (avg of last ${baselineValues.length} F2F) · This: ${myAvg.value.toFixed(2)} ${unit} (${deviation>0?'+':''}${deviation.toFixed(0)}%)`,
+  };
+}
+
 // PARTIAL CONSUMPTION — between last partial fill and current fill.
 //   consumed = last_partial.stock + sum(fills from last_partial inclusive to current exclusive) − cur.stock
 //   Vehicle: km/L = (cur.hmr − last_partial.hmr) / consumed
@@ -2632,6 +2763,19 @@ function buildEntryDisplay(e){
   } else {
     avgCell = '—';
   }
+  // Anomaly detection — compute deviation from this vehicle's F2F baseline.
+  // If significant, the table row will be tinted by the rendering layer below.
+  // We also append a small "vs avg" line under the avg cell so admins see the
+  // delta at a glance without hovering.
+  const anomaly = detectAnomaly(e);
+  if(anomaly){
+    const sevColor = anomaly.severity === 'critical' ? '#991b1b'
+                  : anomaly.severity === 'high'      ? '#9a3412'
+                  : '#92400e';
+    const sign = anomaly.deviation > 0 ? '+' : '';
+    const icon = anomaly.isBadDirection ? '⚠' : 'ℹ';
+    avgCell += `<br><span style="font-size:10px;color:${sevColor};font-weight:600" title="${escapeHtml(anomaly.tooltip)}">${icon} ${sign}${anomaly.deviation.toFixed(0)}% vs avg</span>`;
+  }
   // Partial Consumption — LITERS consumed between last Partial fill and current.
   // Primary: liters (matches user's "consumption" definition).
   // Secondary (small): the derived rate (km/L or L/hr) for quick reference.
@@ -2665,7 +2809,7 @@ function buildEntryDisplay(e){
     const sign = diff.delta > 0 ? '+' : '';
     diffCell = `<b style="color:${color}" title="GPS − F2F (Litres)">${sign}${diff.delta.toFixed(2)} L</b><br><span style="font-size:10px;color:var(--text-soft)">${sign}${diff.pct.toFixed(1)}%</span>`;
   }
-  return { veh, vehDisplay, vehHtml, isGps, unit, src, editBadge, fillBadge, avgCell, partialCell, f2fCell, gpsCell, diffCell };
+  return { veh, vehDisplay, vehHtml, isGps, unit, src, editBadge, fillBadge, avgCell, partialCell, f2fCell, gpsCell, diffCell, anomaly };
 }
 
 // Table view — only Vehicle (1st col) is frozen on horizontal scroll.
@@ -2681,7 +2825,7 @@ function renderEntriesTableView(entries, opts={}){
       const v = (e.custom_data||{})[f.field_key];
       return `<td>${escapeHtml(v||'')}</td>`;
     }).join('');
-    return `<tr>
+    return `<tr${d.anomaly ? ` class="row-anomaly-${d.anomaly.severity}"` : ''}>
       <td class="sticky-1"><b>${d.vehHtml}</b></td>
       <td>${fmtDT(e.fill_time||e.created_at)}</td>
       ${showMgr?`<td>${escapeHtml(e.manager_name||'—')}</td>`:''}
@@ -2739,7 +2883,7 @@ function renderEntriesCardsView(entries, opts={}){
       return `<div class="lbl">${escapeHtml(f.field_label)}</div><div class="val">${escapeHtml(v)}</div>`;
     }).join('');
     return `
-      <div class="entry-card">
+      <div class="entry-card${d.anomaly ? ' card-anomaly-'+d.anomaly.severity : ''}">
         <div class="entry-card-h">
           <div class="veh">${d.vehHtml}</div>
           <div class="time">${fmtDT(e.fill_time||e.created_at)}</div>
@@ -3536,7 +3680,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v5.3</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v5.4</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -4505,7 +4649,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.3</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.4</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
