@@ -1,8 +1,8 @@
-// TASR BharatNext Fuel Manager — Service Worker v5.4
+// TASR BharatNext Fuel Manager — Service Worker v5.5
 // Minimal, foolproof: NO pre-cache (which was breaking fresh installs).
 // Caches resources only as they're fetched. HTML always network-first.
  
-const CACHE_VERSION = 'tasr-fuel-v5.4';
+const CACHE_VERSION = 'tasr-fuel-v5.5';
 const CACHE_NAME = CACHE_VERSION + '-runtime';
  
 // INSTALL — don't pre-fetch anything. Pre-caching was causing fresh installs
@@ -80,4 +80,3 @@ self.addEventListener('fetch', event => {
 self.addEventListener('message', event => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
- 
