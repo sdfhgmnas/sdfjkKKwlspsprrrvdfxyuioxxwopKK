@@ -399,6 +399,10 @@ table tbody tr:hover{background:var(--surface)}
 .kpi .lbl{font-size:11px;color:var(--accent-dark);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
 .kpi .val{font-size:22px;font-weight:700;color:var(--text);margin-top:2px}
 .kpi .sub{font-size:11px;color:var(--text-muted);margin-top:2px}
+/* Value + sparkline side-by-side on KPI cards. Sparkline auto-shrinks on narrow widths. */
+.kpi-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:2px}
+.kpi-row .val{margin-top:0}
+.kpi-row svg{flex-shrink:0;margin-bottom:2px}
 
 /* Admin lock button — fixed top-right, accessible from any screen */
 .admin-btn{
@@ -541,6 +545,10 @@ body.lightbg .admin-btn{
   border-radius:999px;font-size:11px;font-weight:700;
   letter-spacing:.3px;min-width:24px;text-align:center;
 }
+/* Clickable vehicle reg_no in Vehicles list — opens Analysis tab pre-selected */
+.vehicle-link{text-decoration:none;color:inherit;border-bottom:1px dashed transparent;transition:border-color .12s}
+.vehicle-link:hover{border-bottom-color:var(--accent)}
+.vehicle-link:hover b{color:var(--accent-dark) !important}
 .badge.info{background:#dbeafe;color:#1e40af}
 
 .row-actions{display:flex;gap:6px;flex-wrap:wrap}
@@ -692,10 +700,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v5.1 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v5.3 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v5.1</span>
+    <span style="opacity:.35;margin-left:6px">v5.3</span>
   </div>
 </div>
 
@@ -737,7 +745,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.1</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.3</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -839,6 +847,25 @@ async function verifyHashedSetting(settingKey, input, defaultPlain){
   }
   // No hash configured yet — fall back to default until admin sets one.
   return input === defaultPlain;
+}
+
+// ============================================================
+// FEATURE FLAGS — admin can toggle each newer feature on/off.
+// Defaults to ENABLED for every feature so existing installs see no behaviour
+// change. Admin controls these via Admin Panel → Features section.
+// ============================================================
+const FEATURES = [
+  { key:'fab',              label:'Floating "New Entry" button',  desc:'Cyan + button bottom-right for managers — one-tap shortcut to log a new fuel fill.' },
+  { key:'lowstock_alert',   label:'Bowser low-stock alert banner', desc:'Red/amber banner on Overview when any bowser tank drops below 40%.' },
+  { key:'sparklines',       label:'7-day trend sparklines',        desc:'Mini charts on Overview KPI cards showing the last 7 days of entries and litres.' },
+  { key:'vehicle_clickable',label:'Clickable vehicle drill-down',  desc:'Click a vehicle reg-no in the Vehicles list to jump straight to its Analysis page.' },
+  { key:'run_delta',        label:'Run distance below Avg',        desc:'Small "X km run / Y hrs run" subtext below the Avg column in entry tables.' },
+  { key:'gps_column',       label:'GPS column in Vehicles list',   desc:'Show a dedicated GPS badge column in the Vehicles & Machines list.' },
+];
+function isFeatureEnabled(key){
+  // Defaults to true if the setting has never been set.
+  const v = state.settings['feature_'+key];
+  return v === undefined || v === null || v === '' || v === 'true';
 }
 const DEVICE_ID = (() => {
   let d = localStorage.getItem('tasr_device_id');
@@ -994,6 +1021,35 @@ function fmtNum(n, decimals){
   return (+n).toLocaleString('en-IN', opts);
 }
 
+// Tiny inline SVG sparkline for KPI cards. Renders 7 values as a soft
+// area chart with the latest point highlighted. Returns SVG markup ready
+// to embed inline. All-zero data → flat baseline, no highlight.
+function sparkline(values, kind){
+  const W = 72, H = 26, PAD_Y = 2;
+  if(!values || values.length < 2) return `<svg width="${W}" height="${H}" style="opacity:.3"><line x1="0" y1="${H/2}" x2="${W}" y2="${H/2}" stroke="var(--text-soft)" stroke-width="1"/></svg>`;
+  const max = Math.max(...values), min = Math.min(...values);
+  const range = (max - min) || 1;
+  const n = values.length;
+  const xs = i => (i / (n - 1)) * W;
+  const ys = v => H - PAD_Y - ((v - min) / range) * (H - PAD_Y * 2);
+  // Path through all points
+  let path = '';
+  values.forEach((v, i) => {
+    path += (i === 0 ? 'M' : 'L') + xs(i).toFixed(1) + ',' + ys(v).toFixed(1) + ' ';
+  });
+  // Area fill — close back to baseline
+  const areaPath = path + `L${W},${H} L0,${H} Z`;
+  const lastX = xs(n - 1), lastY = ys(values[n - 1]);
+  const allZero = max === 0;
+  return `
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block">
+      <path d="${areaPath}" fill="var(--accent-light)" opacity="${allZero?0:0.8}"/>
+      <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="${allZero?0.3:1}"/>
+      ${allZero ? '' : `<circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2.5" fill="var(--accent-dark)" stroke="#fff" stroke-width="1"/>`}
+    </svg>
+  `;
+}
+
 function toast(msg, type=''){
   const t = $('#toast'); t.textContent = msg; t.className = 'toast show ' + type;
   setTimeout(()=>{ t.className='toast'; }, 2500);
@@ -1137,7 +1193,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v5.1] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v5.3] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1294,7 +1350,23 @@ window.openAdminPanel = function(){
       </div>
     </div>
 
-    <div style="background:#fef3c7;padding:14px;border-radius:8px;margin-bottom:14px;border:1px solid #fcd34d">
+    <div style="margin-top:18px;padding:12px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px">
+      <div style="font-weight:700;margin-bottom:4px;color:#3730a3">✨ Features</div>
+      <div style="font-size:12px;color:#4338ca;margin-bottom:10px">Toggle individual UI features on/off for everyone using this deployment. Turning a feature off hides it for all admins and managers immediately.</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${FEATURES.map(f => `
+          <label style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:#fff;border:1px solid #c7d2fe;border-radius:6px;cursor:pointer">
+            <input type="checkbox" class="ap-feature" data-feature="${f.key}" ${isFeatureEnabled(f.key)?'checked':''} style="width:auto;transform:scale(1.2);flex-shrink:0;margin-top:2px">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:13px;color:var(--text)">${escapeHtml(f.label)}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${escapeHtml(f.desc)}</div>
+            </div>
+          </label>
+        `).join('')}
+      </div>
+    </div>
+
+    <div style="background:#fef3c7;padding:14px;border-radius:8px;margin-bottom:14px;border:1px solid #fcd34d;margin-top:14px">
       <div style="font-weight:700;margin-bottom:4px;color:#92400e">🔒 Security</div>
       <div style="font-size:12px;color:#78350f;margin-bottom:10px">Change admin password and calculator unlock code. Both stored as one-way hashes — even with database access nobody can read them. Set these immediately on first install.</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -1415,7 +1487,13 @@ window.saveAdminSettings = function(){
     .filter(cb => !cb.checked)
     .map(cb => cb.dataset.page);
   updateSetting('admin_pages_disabled', disabled.join(','));
-  closeModal(); toast('Administration settings saved','ok');
+  // Persist each feature toggle — checked = 'true', unchecked = 'false'
+  Array.from(document.querySelectorAll('.ap-feature')).forEach(cb => {
+    updateSetting('feature_'+cb.dataset.feature, cb.checked ? 'true' : 'false');
+  });
+  closeModal();
+  renderDash();          // re-render so toggled features take effect immediately
+  toast('Administration settings saved','ok');
   applyAdminState();
 };
 
@@ -1910,9 +1988,12 @@ function renderDash(opts){
 
   // Floating action button — visible only for managers, hidden on the
   // New Entry tab itself (since the FAB's whole purpose is to get there).
+  // Also respects the Administrator's 'fab' feature toggle.
   const fab = document.getElementById('fab');
   if(fab){
-    const showFab = state.user.role === 'manager' && state.activeTab !== 'new-entry';
+    const showFab = state.user.role === 'manager'
+      && state.activeTab !== 'new-entry'
+      && isFeatureEnabled('fab');
     fab.style.display = showFab ? 'flex' : 'none';
   }
 }
@@ -1921,6 +2002,24 @@ function renderDash(opts){
 window.fabAction = function(){
   if(!state.user || state.user.role !== 'manager') return;
   state.activeTab = 'new-entry';
+  renderDash();
+};
+
+// Click a vehicle reg_no from the Vehicles list → jump directly to the Analysis
+// tab with that vehicle pre-selected. Saves admin from having to first switch
+// tab then find the vehicle in the dropdown.
+window.openVehicleAnalysis = function(vehicleId){
+  if(!state.user || state.user.role !== 'owner') return;
+  const veh = state.vehicles.find(v => v.id === vehicleId);
+  if(!veh){ toast('Vehicle not found','err'); return; }
+  // Check if the Analysis tab is enabled (admin may have disabled it)
+  const disabledPages = (state.settings.admin_pages_disabled || '').split(',').map(s=>s.trim()).filter(Boolean);
+  if(disabledPages.includes('analysis')){
+    toast('Analysis tab is disabled — enable it in Admin Panel first','err');
+    return;
+  }
+  state.analysisVehicleId = vehicleId;
+  state.activeTab = 'analysis';
   renderDash();
 };
 
@@ -1936,15 +2035,53 @@ function renderOverview(page){
   const todayLiters = todays.reduce((s,e)=>s+(+e.quantity||0),0);
   const activeMgrs = state.managers.filter(m=>m.active).length;
 
+  // Bucket the last 7 days for sparklines on the KPI cards.
+  // Day 0 = today, day 6 = 6 days ago; rendered left-to-right as oldest→newest.
+  const dayBuckets = []; // [{day, count, liters}, ...] length 7, oldest first
+  for(let i = 6; i >= 0; i--){
+    const dayStart = new Date(today); dayStart.setDate(dayStart.getDate() - i);
+    const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1);
+    const inDay = state.entries.filter(e => {
+      const ft = new Date(e.fill_time||e.created_at).getTime();
+      return ft >= dayStart.getTime() && ft < dayEnd.getTime();
+    });
+    dayBuckets.push({
+      day: dayStart,
+      count: inDay.length,
+      liters: inDay.reduce((s,e)=>s+(+e.quantity||0),0),
+    });
+  }
+  const sparksOn    = isFeatureEnabled('sparklines');
+  const sparkCount  = sparksOn ? sparkline(dayBuckets.map(b => b.count),  'count')  : '';
+  const sparkLiters = sparksOn ? sparkline(dayBuckets.map(b => b.liters), 'liters') : '';
+
   page.innerHTML = `
     <div class="grid grid-3">
-      <div class="kpi"><div class="lbl">Today's entries</div><div class="val">${fmtNum(todays.length)}</div><div class="sub">${fmtNum(todayLiters, 1)} L</div></div>
-      <div class="kpi"><div class="lbl">Total entries</div><div class="val">${fmtNum(state.entries.length)}</div><div class="sub">${fmtNum(totalLiters, 0)} L all time</div></div>
-      <div class="kpi"><div class="lbl">Active managers</div><div class="val">${activeMgrs} / 10</div><div class="sub">${fmtNum(state.vehicles.filter(v=>v.active!==false).length)} vehicles</div></div>
+      <div class="kpi">
+        <div class="lbl">Today's entries</div>
+        ${sparksOn
+          ? `<div class="kpi-row"><div class="val">${fmtNum(todays.length)}</div>${sparkCount}</div>`
+          : `<div class="val">${fmtNum(todays.length)}</div>`}
+        <div class="sub">${fmtNum(todayLiters, 1)} L${sparksOn?' &nbsp;·&nbsp; 7-day trend':''}</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Total entries</div>
+        ${sparksOn
+          ? `<div class="kpi-row"><div class="val">${fmtNum(state.entries.length)}</div>${sparkLiters}</div>`
+          : `<div class="val">${fmtNum(state.entries.length)}</div>`}
+        <div class="sub">${fmtNum(totalLiters, 0)} L all time${sparksOn?' &nbsp;·&nbsp; 7-day L trend':''}</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Active managers</div>
+        <div class="val">${activeMgrs} / 10</div>
+        <div class="sub">${fmtNum(state.vehicles.filter(v=>v.active!==false).length)} vehicles</div>
+      </div>
     </div>
 
     ${(function(){
       // Low-stock alert banner — checks both bowsers, surfaces the worst one(s).
+      // Admin can disable this banner entirely via Features toggle.
+      if(!isFeatureEnabled('lowstock_alert')) return '';
       // Critical: <20% full → red. Warning: <40% full → amber. Otherwise hide.
       const tanks = ['t1','t2'].map(t => {
         const stock = getBowserStock(t);
@@ -2483,8 +2620,9 @@ function buildEntryDisplay(e){
     const main = `<b style="color:${avg.meaningful?'var(--success)':'var(--text-muted)'}">${avg.formatted}</b>${avg.meaningful?'':' <span style="font-size:10px;color:var(--text-soft)">~</span>'}`;
     // Run delta — HMR change since the previous reference fill. Shown as small subtext
     // so admin can see at a glance how far/long the trip was, not just the rate.
+    // Admin can hide this via Features toggle.
     let runLine = '';
-    if(avg.runDelta != null && avg.runDelta > 0){
+    if(isFeatureEnabled('run_delta') && avg.runDelta != null && avg.runDelta > 0){
       const runUnit = avg.isMachine ? 'hrs run' : 'km run';
       // Hours get 1 decimal (more meaningful for short machine sessions); km stays integer.
       const runStr = avg.isMachine ? avg.runDelta.toFixed(1) : Math.round(avg.runDelta).toLocaleString();
@@ -2966,12 +3104,14 @@ function renderVehicles(page){
     if(list.length === 0){
       return `<div class="empty" style="padding:20px"><div class="em">${kind==='machine'?'⚙️':'🚜'}</div>No ${kind}s yet</div>`;
     }
+    const showGpsCol  = isFeatureEnabled('gps_column');
+    const clickable   = isFeatureEnabled('vehicle_clickable');
     return `<div class="table-wrap"><table>
       <thead><tr>
         <th style="width:50px">S.No</th>
         <th>Reg No</th>
         <th>Type</th>
-        <th>GPS</th>
+        ${showGpsCol?'<th>GPS</th>':''}
         <th>Name</th>
         <th>Branch</th>
         <th>Status</th>
@@ -2980,9 +3120,11 @@ function renderVehicles(page){
       <tbody>${list.map((v, idx)=>`
         <tr>
           <td><span class="serial-no">${idx+1}</span></td>
-          <td><b style="${v.gps_enabled?'color:#059669':''}">${escapeHtml(v.reg_no||'—')}</b></td>
+          <td>${clickable
+              ? `<a href="#" class="vehicle-link" onclick="event.preventDefault();openVehicleAnalysis('${v.id}')" title="View consumption analysis"><b style="${v.gps_enabled?'color:#059669':''}">${escapeHtml(v.reg_no||'—')}</b></a>`
+              : `<b style="${v.gps_enabled?'color:#059669':''}">${escapeHtml(v.reg_no||'—')}</b>`}</td>
           <td><span class="badge ${v.type==='machine'?'warn':'info'}">${v.type||'vehicle'}</span></td>
-          <td>${v.gps_enabled?'<span class="badge gps"><i class="ti ti-satellite" style="font-size:11px;vertical-align:-1px"></i> GPS</span>':'<span style="color:var(--text-soft);font-size:11px">—</span>'}</td>
+          ${showGpsCol?`<td>${v.gps_enabled?'<span class="badge gps"><i class="ti ti-satellite" style="font-size:11px;vertical-align:-1px"></i> GPS</span>':'<span style="color:var(--text-soft);font-size:11px">—</span>'}</td>`:''}
           <td>${escapeHtml(v.name && v.name!==v.reg_no ? v.name : '—')}</td>
           <td>${escapeHtml(v.branch||'—')}</td>
           <td>${v.active===false?'<span class="badge off">Inactive</span>':'<span class="badge ok">Active</span>'}</td>
@@ -2998,7 +3140,10 @@ function renderVehicles(page){
     <div class="section">
       <div class="section-h">
         <h3>Vehicles & Machines</h3>
-        <button class="btn small" onclick="addVehicleModal()">+ Add</button>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${isFeatureEnabled('vehicle_clickable')?'<span class="sub" style="font-size:11px">💡 Click reg no to view analysis</span>':''}
+          <button class="btn small" onclick="addVehicleModal()">+ Add</button>
+        </div>
       </div>
       ${state.vehicles.length===0
         ? `<div class="empty">
@@ -3391,7 +3536,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v5.1</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v5.3</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -4360,7 +4505,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.1</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.3</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
