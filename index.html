@@ -726,10 +726,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v5.5 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v5.6 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v5.5</span>
+    <span style="opacity:.35;margin-left:6px">v5.6</span>
   </div>
 </div>
 
@@ -771,7 +771,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.5</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.6</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1227,7 +1227,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v5.5] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v5.6] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -2434,41 +2434,79 @@ function detectAnomaly(entry){
 //   consumed = last_partial.stock + sum(fills from last_partial inclusive to current exclusive) − cur.stock
 //   Vehicle: km/L = (cur.hmr − last_partial.hmr) / consumed
 //   Machine: L/hr = consumed / (cur.hmr − last_partial.hmr)
+// PARTIAL CONSUMPTION — fuel consumed between the most recent prior fill and
+// the current fill, computed from dipstick readings.
+//
+//   consumed = anchor.stock + anchor.qty + skippedQty − current.stock
+//
+// The anchor is the most recent prior fill of ANY type (Full or Partial) that
+// has a Vehicle Stock dipstick reading. If the immediate prior fill skipped its
+// dipstick reading, we walk back through earlier fills until we find one that
+// recorded stock — every walked-past fill's quantity is added to skippedQty
+// (since that fuel was added to the tank between anchor and current).
+//
+//   Vehicle: km/L = (cur.hmr − anchor.hmr) / consumed
+//   Machine: L/hr = consumed / (cur.hmr − anchor.hmr)
 function calcPartialConsumption(entry){
   const veh = state.vehicles.find(v => v.id === entry.vehicle_id);
   if(!veh) return { reason: 'Vehicle not found in master list' };
   const isMachine = veh.type === 'machine';
   const unit = isMachine ? 'L/hr' : 'km/L';
-  const t = new Date(entry.fill_time || entry.created_at).getTime();
-  // Last partial fill of same vehicle (strictly before current)
-  const lastPartial = state.entries
-    .filter(e => e.vehicle_id === entry.vehicle_id && e.id !== entry.id && e.fill_type === 'not_full')
-    .filter(e => new Date(e.fill_time || e.created_at).getTime() < t)
-    .sort((a,b) => new Date(b.fill_time||b.created_at) - new Date(a.fill_time||a.created_at))[0];
-  if(!lastPartial) return { reason: 'No previous partial (Not Full) fill of this vehicle' };
-  const lpStock = parseFloat(lastPartial.stock);
-  if(isNaN(lpStock)) return { reason: 'Last partial fill has no Vehicle Stock' };
+
   const curStock = parseFloat(entry.stock);
   if(isNaN(curStock)) return { reason: 'This entry has no Vehicle Stock' };
-  // Sum fills from last_partial INCLUSIVE to current EXCLUSIVE
-  const lpT = new Date(lastPartial.fill_time||lastPartial.created_at).getTime();
-  const sumFills = state.entries
-    .filter(e => e.vehicle_id === entry.vehicle_id)
-    .filter(e => {
-      const et = new Date(e.fill_time||e.created_at).getTime();
-      return et >= lpT && et < t;
-    })
-    .reduce((s,e) => s + (parseFloat(e.quantity)||0), 0);
-  const consumed = lpStock + sumFills - curStock;
-  if(consumed <= 0) return { reason: `Stock readings inconsistent — consumed ${consumed.toFixed(1)} L` };
-  const lpHmr = parseFloat(lastPartial.hmr);
-  if(isNaN(lpHmr)) return { reason: 'Last partial fill has no HMR/KM' };
-  const curHmr = parseFloat(entry.hmr);
-  if(isNaN(curHmr)) return { reason: 'This entry has no HMR/KM' };
-  const delta = curHmr - lpHmr;
-  if(delta <= 0) return { reason: `HMR/KM did not increase (Δ ${delta})` };
-  const value = isMachine ? consumed/delta : delta/consumed;
-  return { value, formatted: value.toFixed(2)+' '+unit, unit, consumed, delta };
+
+  const t = new Date(entry.fill_time || entry.created_at).getTime();
+  // All prior fills of this vehicle, newest-first
+  const priorFills = state.entries
+    .filter(e => e.vehicle_id === entry.vehicle_id && e.id !== entry.id)
+    .filter(e => new Date(e.fill_time || e.created_at).getTime() < t)
+    .sort((a,b) => new Date(b.fill_time||b.created_at) - new Date(a.fill_time||a.created_at));
+
+  if(priorFills.length === 0) return { reason: 'No previous fill of this vehicle' };
+
+  // Walk back until we find a fill that has a Vehicle Stock value (the anchor).
+  // Fills walked past still contributed fuel — accumulate their qty into skippedQty.
+  let anchor = null, skippedQty = 0, walkedFills = 0;
+  for(const f of priorFills){
+    const fs = parseFloat(f.stock);
+    if(!isNaN(fs)){ anchor = f; break; }
+    skippedQty += (parseFloat(f.quantity) || 0);
+    walkedFills++;
+  }
+  if(!anchor){
+    return { reason: walkedFills > 0
+      ? `Walked back ${walkedFills} prior fill${walkedFills>1?'s':''} but none had Vehicle Stock recorded`
+      : 'Previous fill has no Vehicle Stock recorded' };
+  }
+
+  const anchorStock = parseFloat(anchor.stock);
+  const anchorQty   = parseFloat(anchor.quantity) || 0;
+  // Tank level immediately after the anchor fill = anchorStock + anchorQty.
+  // Add any intermediate fills' quantities (skippedQty) that came after anchor
+  // but before the current entry. Subtract current dipstick to get consumed.
+  const consumed = anchorStock + anchorQty + skippedQty - curStock;
+  if(consumed <= 0){
+    return { reason: `Stock readings inconsistent — got ${consumed.toFixed(1)} L (anchor ${anchorStock.toFixed(1)} + filled ${(anchorQty+skippedQty).toFixed(1)} − current ${curStock.toFixed(1)})` };
+  }
+
+  // Rate (km/L or L/hr) is optional — only computed if HMR available at both ends.
+  const anchorHmr = parseFloat(anchor.hmr);
+  const curHmr    = parseFloat(entry.hmr);
+  let value, formatted, delta;
+  if(!isNaN(anchorHmr) && !isNaN(curHmr)){
+    delta = curHmr - anchorHmr;
+    if(delta > 0){
+      value = isMachine ? consumed/delta : delta/consumed;
+      formatted = value.toFixed(2) + ' ' + unit;
+    }
+  }
+  return {
+    consumed, value, formatted, unit, delta,
+    anchorType: anchor.fill_type,      // 'full' or 'not_full'
+    walkedBack: walkedFills > 0,
+    walkedFills,
+  };
 }
 
 // F2F (FULL-TO-FULL) CONSUMPTION — sum of fills between two Full events.
@@ -2777,13 +2815,27 @@ function buildEntryDisplay(e){
     const icon = anomaly.isBadDirection ? '⚠' : 'ℹ';
     avgCell += `<br><span style="font-size:10px;color:${sevColor};font-weight:600" title="${escapeHtml(anomaly.tooltip)}">${icon} ${sign}${anomaly.deviation.toFixed(0)}% vs avg</span>`;
   }
-  // Partial Consumption — LITERS consumed between last Partial fill and current.
-  // Primary: liters (matches user's "consumption" definition).
-  // Secondary (small): the derived rate (km/L or L/hr) for quick reference.
+  // Partial Consumption — LITERS consumed between this fill and the most recent
+  // prior fill (any type), via dipstick math. The rate sub-line is shown only
+  // when both anchor and current have HMR.
   const partial = calcPartialConsumption(e);
-  const partialCell = (partial && partial.value !== undefined)
-    ? `<b>${partial.consumed.toFixed(1)} L</b><br><span style="font-size:10px;color:var(--text-soft)">${partial.value.toFixed(2)} ${unit}</span>`
-    : `<span style="color:var(--text-soft);cursor:help;border-bottom:1px dotted var(--text-soft)" title="${escapeHtml(partial && partial.reason ? partial.reason : 'Cannot compute')}">—</span>`;
+  let partialCell;
+  if(partial && partial.consumed != null){
+    const rateLine = partial.formatted
+      ? `<br><span style="font-size:10px;color:var(--text-soft)">${partial.formatted}</span>`
+      : `<br><span style="font-size:10px;color:var(--text-soft)" title="No HMR data — rate not computed">— ${unit}</span>`;
+    // Small ~ marker when we had to walk back past fills missing dipstick readings
+    const walkedTag = partial.walkedBack
+      ? ` <span style="font-size:9px;color:#a16207;background:#fef3c7;padding:0 4px;border-radius:3px" title="Walked back ${partial.walkedFills} prior fill(s) without Vehicle Stock — math still includes their quantities">~</span>`
+      : '';
+    // Light indication of which fill type the anchor was, useful for understanding
+    const anchorBadge = partial.anchorType === 'full'
+      ? ' <span style="font-size:9px;color:#059669" title="Anchor was a Full Tank fill">↳F</span>'
+      : '';
+    partialCell = `<b>${partial.consumed.toFixed(1)} L</b>${walkedTag}${anchorBadge}${rateLine}`;
+  } else {
+    partialCell = `<span style="color:var(--text-soft);cursor:help;border-bottom:1px dotted var(--text-soft)" title="${escapeHtml(partial && partial.reason ? partial.reason : 'Cannot compute')}">—</span>`;
+  }
   // F2F Consumption — LITERS = sum of all fills between two Full events.
   const f2f = calcF2FConsumption(e);
   const f2fCell = (f2f && f2f.value !== undefined)
@@ -3704,7 +3756,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v5.5</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v5.6</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -4673,7 +4725,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.5</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v5.6</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
