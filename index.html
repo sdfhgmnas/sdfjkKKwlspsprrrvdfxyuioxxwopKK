@@ -176,36 +176,97 @@ html{background:#000}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 
 /* ==================== LOGIN ==================== */
-#login-screen{display:none;align-items:center;justify-content:center;padding:24px;min-height:100vh;min-height:100dvh;
-  background:linear-gradient(180deg,#ecfeff 0%,#f8fafc 100%);}
+/* ============================================================
+   LOGIN SCREEN — full-viewport split-screen design.
+   Mobile: single-column card (hero panel hidden).
+   Desktop: brand hero on left + login form on right, both filling height.
+   ============================================================ */
+#login-screen{display:none;align-items:stretch;justify-content:center;padding:0;min-height:100vh;min-height:100dvh;
+  background:linear-gradient(135deg,#0e7490 0%,#0891b2 50%,#0e7490 100%);}
 #login-screen.active{display:flex}
 .login-card{
-  background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:380px;
-  box-shadow:var(--shadow);border:1px solid var(--border);
+  background:#fff;border-radius:0;padding:0;width:100%;max-width:none;height:100vh;height:100dvh;
+  box-shadow:none;border:none;
+  display:flex;flex-direction:column;overflow-y:auto;
 }
-/* Desktop: bigger login card + hero panel on the left for brand presence */
+
+/* Brand hero panel — hidden on mobile, shown on desktop */
+.login-hero{display:none}
+.login-form{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:24px 20px;background:#fff;overflow-y:auto;
+}
+.login-form-inner{width:100%;max-width:420px}
+
+.login-title{font-size:26px;font-weight:800;margin-bottom:4px;letter-spacing:-.5px;color:#0f172a}
+.login-sub{color:var(--text-muted);font-size:14px;margin-bottom:22px;font-weight:500}
+.role-tabs{display:flex;gap:6px;background:var(--surface-2);padding:5px;border-radius:10px;margin-bottom:20px}
+.role-tab{flex:1;padding:10px 12px;font-weight:700;font-size:13px;color:var(--text-muted);border-radius:7px;transition:all .15s}
+.role-tab.active{background:#fff;color:var(--accent-dark);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+/* Hint shown while manager hasn't picked their name yet */
+.login-hint{
+  display:flex;align-items:center;gap:10px;padding:14px 16px;background:#f0fdfa;
+  border:1px dashed #5eead4;border-radius:10px;color:#0e7490;font-size:13px;font-weight:500;
+  margin-top:6px;
+}
+.login-hint-icon{font-size:20px;line-height:1}
+
+/* PIN pad slides down when reveal-class applied. Default hidden. */
+.pin-hidden{max-height:0;overflow:hidden;opacity:0;transition:max-height .3s ease, opacity .2s ease}
+.pin-visible{max-height:700px;opacity:1;transition:max-height .35s ease, opacity .25s ease .1s}
+
+/* Desktop (≥900px): split-screen with hero panel */
 @media(min-width:900px){
-  #login-screen{
-    background:
-      radial-gradient(circle at 20% 20%, #cffafe 0%, transparent 45%),
-      radial-gradient(circle at 80% 80%, #e0e7ff 0%, transparent 45%),
-      linear-gradient(180deg,#ecfeff 0%,#f8fafc 100%);
-    padding:40px;
-  }
+  #login-screen{padding:0}
   .login-card{
-    max-width:520px;
-    padding:44px 40px;
-    box-shadow:0 20px 60px rgba(15,23,42,.12), 0 4px 12px rgba(15,23,42,.06);
-    border-radius:20px;
+    flex-direction:row;
+    max-width:1200px;height:min(90vh, 780px);margin:auto;
+    border-radius:24px;overflow:hidden;
+    box-shadow:0 30px 80px rgba(15,23,42,.25), 0 10px 20px rgba(15,23,42,.1);
   }
-  .login-title{ font-size:28px !important; }
-  .login-sub  { font-size:15px !important; margin-bottom:28px !important; }
-  .role-tabs  { padding:6px !important; margin-bottom:24px !important; }
-  .role-tab   { padding:12px 16px !important; font-size:14px !important; }
-  .pin-display{ padding:16px 0 !important; gap:12px !important; }
-  .pin-dot    { width:16px !important; height:16px !important; }
-  .pin-pad    { gap:14px !important; }
-  .pin-btn    { font-size:26px !important; height:64px !important; }
+  .login-hero{
+    display:flex;flex:1.1;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(255,255,255,.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 85%, rgba(255,255,255,.1)  0%, transparent 50%),
+      linear-gradient(135deg,#0e7490 0%,#0891b2 50%,#155e75 100%);
+    color:#fff;padding:60px 48px;position:relative;overflow:hidden;
+  }
+  .login-hero::before{
+    content:''; position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size:36px 36px; pointer-events:none;
+  }
+  .login-hero-content{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;height:100%;max-width:440px}
+  .login-hero-brand{font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1}
+  .login-hero-brand span{color:#67e8f9;font-weight:800}
+  .login-hero-tag{font-size:15px;font-weight:600;color:#a5f3fc;margin-top:6px;letter-spacing:.3px;text-transform:uppercase}
+  .login-hero-desc{font-size:15px;line-height:1.55;color:#e0f7fa;margin-top:22px;max-width:380px}
+  .login-hero-features{display:flex;flex-direction:column;gap:14px;margin-top:32px}
+  .login-hero-feature{display:flex;gap:14px;align-items:flex-start}
+  .login-hero-feature > span{
+    width:38px;height:38px;flex-shrink:0;
+    background:rgba(255,255,255,.12);border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:19px;backdrop-filter:blur(4px);
+  }
+  .login-hero-feature > div{display:flex;flex-direction:column;line-height:1.3}
+  .login-hero-feature b{font-size:14px;font-weight:700;color:#fff}
+  .login-hero-feature small{font-size:12px;color:#a5f3fc;margin-top:2px}
+
+  .login-form{flex:1;padding:48px 44px;overflow-y:auto}
+  .login-form-inner{max-width:400px}
+  .login-title{font-size:26px}
+  .login-sub{font-size:14px;margin-bottom:26px}
+  .role-tabs{padding:5px;margin-bottom:22px}
+  .role-tab{padding:11px 14px;font-size:14px}
+  .pin-display{padding:14px 0 !important;gap:11px !important}
+  .pin-dot{width:13px !important;height:13px !important}
+  .pin-pad{gap:11px !important}
+  .pin-btn{font-size:22px !important;height:54px !important}
 }
 .login-title{font-size:20px;font-weight:700;margin-bottom:4px;letter-spacing:-.3px}
 .login-sub{color:var(--text-muted);font-size:13px;margin-bottom:20px}
@@ -316,6 +377,25 @@ html{background:#000}
   border:1px solid #a5f3fc;
 }
 .filter-count-chip:empty{display:none}
+
+/* Managers access control — quick summary stat cards at the top of the
+   Managers tab, showing how many managers have login access vs revoked
+   vs empty slots. Colored borders so admin scans them at a glance. */
+.mgr-stat{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;background:#fff;
+  border:1px solid var(--border);border-radius:10px;
+  min-width:170px;flex:1;
+}
+.mgr-stat-val{font-size:22px;font-weight:800;line-height:1;color:var(--text)}
+.mgr-stat-lbl{font-size:11px;font-weight:600;color:var(--text-muted);margin-top:3px;white-space:nowrap}
+.mgr-stat-active   { background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%); border-color:#86efac; }
+.mgr-stat-active .mgr-stat-val { color:#15803d; }
+.mgr-stat-inactive { background:linear-gradient(135deg,#fef2f2 0%,#fee2e2 100%); border-color:#fca5a5; }
+.mgr-stat-inactive .mgr-stat-val { color:#b91c1c; }
+.mgr-stat-neutral  { background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%); border-color:#cbd5e1; }
+.mgr-stat-neutral .mgr-stat-val { color:#334155; }
+@media(max-width:600px){ .mgr-stat{ min-width:140px } }
 
 .grid{display:grid;gap:10px}
 .grid-2{grid-template-columns:repeat(2,1fr)}
@@ -848,52 +928,77 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v6.3 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v6.4 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v6.3</span>
+    <span style="opacity:.35;margin-left:6px">v6.4</span>
   </div>
 </div>
 
 <!-- ==================== LOGIN SCREEN ==================== -->
 <div id="login-screen" class="screen">
   <div class="login-card">
-    <div class="login-title">TASR <span style="color:var(--accent-dark)">BharatNext</span></div>
-    <div class="login-sub">Fuel Manager · Secure Login</div>
-
-    <div class="role-tabs">
-      <button class="role-tab active" data-role="manager">Diesel Manager</button>
-      <button class="role-tab" data-role="owner">🔒 Admin</button>
-    </div>
-
-    <div id="login-msg"></div>
-
-    <div id="login-manager">
-      <div class="form-row">
-        <label>Select your name</label>
-        <select id="login-mgr-select"><option value="">— select —</option></select>
-      </div>
-      <div class="form-row">
-        <label>Enter PIN</label>
-        <div id="login-mgr-pin"></div>
+    <!-- Left side: brand hero panel (desktop only) -->
+    <div class="login-hero">
+      <div class="login-hero-content">
+        <div class="login-hero-brand">TASR <span>BharatNext</span></div>
+        <div class="login-hero-tag">Fuel &amp; Fleet Intelligence</div>
+        <div class="login-hero-desc">Real-time diesel tracking, mileage anomaly detection, and per-vehicle analytics for central India fleet operations.</div>
+        <div class="login-hero-features">
+          <div class="login-hero-feature"><span>🛰</span><div><b>GPS-linked tracking</b><small>Cross-verify manual entries with telematics</small></div></div>
+          <div class="login-hero-feature"><span>⚠</span><div><b>Anomaly alerts</b><small>Automatic flags on unusual consumption</small></div></div>
+          <div class="login-hero-feature"><span>📊</span><div><b>Daily reports</b><small>Distance vs diesel · hours vs diesel</small></div></div>
+        </div>
       </div>
     </div>
 
-    <div id="login-owner" style="display:none">
-      <div class="form-row">
-        <label>Admin PIN</label>
-        <div id="login-owner-pin"></div>
+    <!-- Right side: actual login form -->
+    <div class="login-form">
+      <div class="login-form-inner">
+        <div class="login-title">TASR <span style="color:var(--accent-dark)">BharatNext</span></div>
+        <div class="login-sub">Fuel Manager · Secure Login</div>
+
+        <div class="role-tabs">
+          <button class="role-tab active" data-role="manager">Diesel Manager</button>
+          <button class="role-tab" data-role="owner">🔒 Admin</button>
+        </div>
+
+        <div id="login-msg"></div>
+
+        <div id="login-manager">
+          <div class="form-row">
+            <label>Select your name</label>
+            <select id="login-mgr-select"><option value="">— select —</option></select>
+          </div>
+          <!-- PIN pad reveal AFTER a manager is chosen -->
+          <div id="login-mgr-pin-wrap" class="pin-hidden">
+            <div class="form-row" style="margin-bottom:6px">
+              <label id="login-mgr-pin-label">Enter PIN</label>
+            </div>
+            <div id="login-mgr-pin"></div>
+          </div>
+          <div id="login-mgr-hint" class="login-hint">
+            <span class="login-hint-icon">👆</span> Pick your name above to enter your PIN
+          </div>
+        </div>
+
+        <div id="login-owner" style="display:none">
+          <div class="form-row">
+            <label>Admin PIN</label>
+            <div id="login-owner-pin"></div>
+          </div>
+        </div>
+
+        <button class="btn ghost" id="login-back" style="width:100%;margin-top:8px">← Back to calculator</button>
       </div>
     </div>
-
-    <button class="btn ghost" id="login-back" style="width:100%;margin-top:8px">← Back to calculator</button>
   </div>
 </div>
 
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.3</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.4</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1349,7 +1454,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v6.3] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v6.4] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1377,7 +1482,33 @@ function gotoLogin(){
   $('#login-msg').innerHTML='';
   refreshManagerLoginDropdown();
   setupLoginPinPads();
+  // Reset PIN-pad visibility: only appears after manager selects their name.
+  // Admin PIN pad stays visible when the Admin tab is chosen (only one name = the admin).
+  setManagerPinVisible(false);
   const fab=document.getElementById('fab'); if(fab) fab.style.display='none';
+}
+// Show/hide the manager PIN pad and toggle the "pick your name" hint.
+function setManagerPinVisible(show){
+  const wrap = document.getElementById('login-mgr-pin-wrap');
+  const hint = document.getElementById('login-mgr-hint');
+  const lbl  = document.getElementById('login-mgr-pin-label');
+  if(!wrap) return;
+  if(show){
+    wrap.classList.remove('pin-hidden');
+    wrap.classList.add('pin-visible');
+    if(hint) hint.style.display = 'none';
+    // Show manager's name on the PIN label so they know the pad is theirs
+    const id = parseInt($('#login-mgr-select').value);
+    const m = state.managers.find(x => x.id === id);
+    if(lbl && m) lbl.textContent = `Hi ${m.name} — enter your PIN`;
+  } else {
+    wrap.classList.add('pin-hidden');
+    wrap.classList.remove('pin-visible');
+    if(hint) hint.style.display = '';
+    if(lbl) lbl.textContent = 'Enter PIN';
+    // Clear any half-typed PIN so a switch of manager doesn't leak digits
+    if(_mgrPinPad && _mgrPinPad.clear) _mgrPinPad.clear();
+  }
 }
 function gotoDash(){
   setLightBg(true);
@@ -1857,7 +1988,17 @@ $$('.role-tab').forEach(t=>t.addEventListener('click', ()=>{
   $('#login-msg').innerHTML='';
   if(_mgrPinPad) _mgrPinPad.clear();
   if(_ownerPinPad) _ownerPinPad.clear();
+  // Reset visibility so the pad hides again if the manager hasn't yet picked a name
+  if(r === 'manager'){
+    const sel = $('#login-mgr-select');
+    setManagerPinVisible(!!(sel && sel.value));
+  }
 }));
+
+// Manager dropdown → reveal PIN pad and greet them by name
+$('#login-mgr-select').addEventListener('change', () => {
+  setManagerPinVisible(!!$('#login-mgr-select').value);
+});
 
 $('#login-back').addEventListener('click', gotoCalc);
 
@@ -3962,29 +4103,93 @@ window.confirmDeleteVehicle = function(id){
 
 // ---------- OWNER: MANAGERS ----------
 function renderManagers(page){
+  const active = state.managers.filter(m=>m.active).length;
+  const inactive = state.managers.length - active;
   page.innerHTML = `
     <div class="section">
       <div class="section-h">
-        <h3>Diesel Managers (10 slots)</h3>
-        <span class="sub">${state.managers.filter(m=>m.active).length} active · only active managers can login</span>
+        <h3>👥 Diesel Managers · Access Control</h3>
+        <span class="sub">${active} of ${state.managers.length} active</span>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <div class="mgr-stat mgr-stat-active">
+          <div class="mgr-stat-val">${active}</div>
+          <div class="mgr-stat-lbl">🟢 With login access</div>
+        </div>
+        <div class="mgr-stat mgr-stat-inactive">
+          <div class="mgr-stat-val">${inactive}</div>
+          <div class="mgr-stat-lbl">⛔ Access removed</div>
+        </div>
+        <div class="mgr-stat mgr-stat-neutral">
+          <div class="mgr-stat-val">${10 - state.managers.length}</div>
+          <div class="mgr-stat-lbl">📋 Empty slots</div>
+        </div>
+      </div>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:12px;color:#1e40af">
+        💡 <b>You control who can log in.</b> Toggle "Grant access" / "Revoke access" per manager below.
+        Managers whose access is revoked disappear from the login screen instantly — even if they had the correct PIN,
+        they can no longer sign in until you re-grant access.
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>#</th><th>Name</th><th>PIN</th><th>Status</th><th></th></tr></thead>
+        <thead><tr>
+          <th style="width:40px">#</th>
+          <th>Name</th>
+          <th>PIN</th>
+          <th>Access</th>
+          <th style="text-align:right">Actions</th>
+        </tr></thead>
         <tbody>${state.managers.map(m=>`
           <tr>
             <td><b>${m.id}</b></td>
             <td>${escapeHtml(m.name)}</td>
-            <td style="font-family:monospace">${'•'.repeat(Math.min(8,(m.password||'').length))||'—'}</td>
-            <td>${m.active?'<span class="badge ok">Active</span>':'<span class="badge off">Inactive</span>'}</td>
-            <td><button class="btn small ghost" onclick="editManagerModal(${m.id})">Edit</button></td>
+            <td style="font-family:monospace;color:${(m.password||'')?'var(--text)':'var(--text-soft)'}">${'•'.repeat(Math.min(8,(m.password||'').length))||'not set'}</td>
+            <td>${m.active
+              ? '<span class="badge ok">🟢 Granted</span>'
+              : '<span class="badge off">⛔ Revoked</span>'}</td>
+            <td style="text-align:right">
+              <div class="row-actions" style="justify-content:flex-end">
+                ${m.active
+                  ? `<button class="btn xs" style="background:#fef2f2;color:#991b1b;border:1px solid #fca5a5" onclick="toggleManagerAccess(${m.id})" title="Remove login access — manager disappears from login screen">⛔ Revoke</button>`
+                  : `<button class="btn xs" style="background:#dcfce7;color:#166534;border:1px solid #86efac" onclick="toggleManagerAccess(${m.id})" title="Grant login access — manager can log in again">🟢 Grant</button>`}
+                <button class="btn xs ghost" onclick="editManagerModal(${m.id})">Edit</button>
+              </div>
+            </td>
           </tr>`).join('')}
         </tbody></table></div>
       <div style="font-size:12px;color:var(--text-muted);margin-top:10px">
-        💡 Disable all managers → app effectively becomes calculator-only for them. Owner can still login any time.
+        💡 Use <b>Edit</b> to change a manager's name or PIN. Use <b>Grant / Revoke</b> for quick access changes without editing anything else.
       </div>
     </div>
   `;
 }
+
+// Quick access-toggle — flips manager.active without opening the edit modal.
+window.toggleManagerAccess = function(id){
+  const m = state.managers.find(x => x.id === id); if(!m) return;
+  const willActivate = !m.active;
+  const label = escapeHtml(m.name);
+  openModal(
+    (willActivate ? '🟢 Grant login access' : '⛔ Revoke login access') + ' — ' + label,
+    `
+    <div style="background:${willActivate?'#f0fdf4':'#fef2f2'};border-left:3px solid ${willActivate?'#22c55e':'#dc2626'};padding:10px 12px;border-radius:6px;margin-bottom:14px;font-size:13px;color:${willActivate?'#166534':'#991b1b'}">
+      ${willActivate
+        ? `<b>${label}</b> will be able to log in on the manager login screen using their PIN.`
+        : `<b>${label}</b> will no longer appear on the manager login screen. Any active session they have will end at next refresh. This does NOT delete their past entries.`}
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="flex:2;${willActivate?'':'background:#dc2626;border-color:#dc2626'}" onclick="confirmToggleManagerAccess(${id}, ${willActivate})">
+        ${willActivate ? '🟢 Grant Access' : '⛔ Revoke Access'}
+      </button>
+    </div>
+  `);
+};
+window.confirmToggleManagerAccess = function(id, activate){
+  updateManager(id, { active: !!activate });
+  closeModal();
+  renderDash();
+  toast(activate ? 'Login access granted' : 'Login access revoked','ok');
+};
 
 window.editManagerModal = function(id){
   const m = state.managers.find(x=>x.id===id); if(!m) return;
@@ -4674,7 +4879,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.3</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.4</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -5643,7 +5848,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.3</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.4</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
