@@ -761,10 +761,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v6.0 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v6.1 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v6.0</span>
+    <span style="opacity:.35;margin-left:6px">v6.1</span>
   </div>
 </div>
 
@@ -806,7 +806,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.0</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.1</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1262,7 +1262,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v6.0] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v6.1] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -3364,7 +3364,11 @@ function renderMileageChart(veh, stats){
       <div class="empty"><div class="em">📈</div>Need at least 2 Full-to-Full data points to chart trend.${pts.length===1?' One available — record more Full fills.':''}</div>
     </div>`;
   }
-  const W = 720, H = 260, PAD_L = 46, PAD_R = 90, PAD_T = 24, PAD_B = 40;
+  // Chart dimensions — width scales with number of data points so labels don't
+  // overlap on dense charts. Container gets horizontal scroll when needed.
+  const MIN_PX_PER_POINT = 80;
+  const H = 260, PAD_L = 46, PAD_R = 90, PAD_T = 30, PAD_B = 46;
+  const W = Math.max(720, PAD_L + PAD_R + pts.length * MIN_PX_PER_POINT);
   const innerW = W - PAD_L - PAD_R;
   const innerH = H - PAD_T - PAD_B;
   const values = pts.map(p => p.value);
@@ -3380,7 +3384,6 @@ function renderMileageChart(veh, stats){
   const tHigh = parseFloat(state.settings.anomaly_threshold_high)     || 20;
   const tCrit = parseFloat(state.settings.anomaly_threshold_critical) || 30;
   const avg = stats.avg;
-  // Bad direction: machines → higher, vehicles → lower
   const badMult = pct => stats.isMachine ? (1 + pct/100) : (1 - pct/100);
   const badLevels = [
     { pct: tMed,  y: yAt(avg * badMult(tMed)),  label: `±${tMed}%`,  color: '#f59e0b', opacity: 0.35 },
@@ -3388,45 +3391,29 @@ function renderMileageChart(veh, stats){
     { pct: tCrit, y: yAt(avg * badMult(tCrit)), label: `±${tCrit}%`, color: '#dc2626', opacity: 0.6  },
   ].filter(l => l.y > PAD_T && l.y < PAD_T + innerH);
 
-  // Smart label picker — first, last, best, worst, plus outliers (>15% deviation)
-  const labelIdx = new Set([0, pts.length - 1]);
-  pts.forEach((p, i) => {
-    if(p === stats.bestPoint || p === stats.worstPoint) labelIdx.add(i);
-    const dev = Math.abs((p.value - avg) / avg) * 100;
-    if(dev >= tMed) labelIdx.add(i);
-  });
-  // Cap at 8 labels — keep the most extreme deviations
-  if(labelIdx.size > 8){
-    const scored = Array.from(labelIdx).map(i => ({ i, dev: Math.abs(pts[i].value - avg) }));
-    scored.sort((a,b) => b.dev - a.dev);
-    labelIdx.clear();
-    labelIdx.add(0); labelIdx.add(pts.length - 1);
-    for(const {i} of scored){ if(labelIdx.size >= 8) break; labelIdx.add(i); }
-  }
-
   // Points/lines
   const polylinePts = pts.map((p, i) => xAt(i) + ',' + yAt(p.value)).join(' ');
   const avgY = yAt(avg);
   const badThreshold = stats.isMachine ? avg * (1 + tMed/100) : avg * (1 - tMed/100);
   const isPointBad = p => stats.isMachine ? p.value > badThreshold : p.value < badThreshold;
 
-  const runUnit = stats.isMachine ? 'h' : 'km';
+  // ALL points get labels. Value on one line (bold), context "(12h · 126L)" below
+  // in smaller font. Labels flip to below-dot placement when the dot is near the
+  // top of the chart so text doesn't clip.
   const circles = pts.map((p, i) => {
     const x = xAt(i), y = yAt(p.value);
     const bad = isPointBad(p);
     const color = bad ? '#dc2626' : '#1e40af';
-    // Two-line label on selected points:
-    //   line 1 (above dot): mileage value in bold
-    //   line 2 (below dot): "(12h · 126L)" context — hours/km run and diesel liters
-    let label = '';
-    if(labelIdx.has(i)){
-      const runStr = stats.isMachine ? p.hmrDelta.toFixed(0)+'h' : Math.round(p.hmrDelta)+'km';
-      const contextStr = `(${runStr} · ${p.qty.toFixed(0)}L)`;
-      label = `
-        <text x="${x}" y="${y-10}" text-anchor="middle" font-size="10" font-weight="700" fill="${bad?'#991b1b':'#1e3a8a'}">${p.value.toFixed(1)}</text>
-        <text x="${x}" y="${y+14}" text-anchor="middle" font-size="8.5" font-weight="500" fill="#64748b">${contextStr}</text>
-      `;
-    }
+    const runStr = stats.isMachine ? p.hmrDelta.toFixed(0)+'h' : Math.round(p.hmrDelta)+'km';
+    const contextStr = `(${runStr} · ${p.qty.toFixed(0)}L)`;
+    // If there's not enough room above the dot, place label below it instead
+    const putAbove = (y - PAD_T) > 24;
+    const valueY   = putAbove ? y - 18 : y + 14;
+    const bracketY = putAbove ? y - 6  : y + 24;
+    const label = `
+      <text x="${x}" y="${valueY}" text-anchor="middle" font-size="10" font-weight="700" fill="${bad?'#991b1b':'#1e3a8a'}">${p.value.toFixed(1)}</text>
+      <text x="${x}" y="${bracketY}" text-anchor="middle" font-size="7" font-weight="500" fill="#64748b">${contextStr}</text>
+    `;
     return `<g><title>${new Date(p.date).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'})}\n${p.value.toFixed(2)} ${unit}\nDiesel: ${p.qty.toFixed(1)} L\n${stats.isMachine?'Hours':'KM'}: ${p.hmrDelta.toFixed(1)}</title>
       <circle cx="${x}" cy="${y}" r="3.5" fill="${color}" stroke="#fff" stroke-width="1.5"></circle>${label}</g>`;
   }).join('');
@@ -3437,11 +3424,11 @@ function renderMileageChart(veh, stats){
     <line x1="${PAD_L}" x2="${W-PAD_R}" y1="${yAt(v)}" y2="${yAt(v)}" stroke="#f1f5f9" stroke-width="1"></line>
   `).join('');
 
-  // X-axis: chronological dates (adaptive density based on point count)
-  const nLabels = Math.min(pts.length, 6);
-  const step = Math.max(1, Math.floor((pts.length - 1) / (nLabels - 1)));
+  // X-axis: chronological dates. For dense charts, show every point's date;
+  // for very dense (>15 points), show every Nth so labels don't crowd.
+  const dateStep = pts.length > 15 ? Math.ceil(pts.length / 12) : 1;
   const xIdxs = [];
-  for(let i = 0; i < pts.length; i += step) xIdxs.push(i);
+  for(let i = 0; i < pts.length; i += dateStep) xIdxs.push(i);
   if(xIdxs[xIdxs.length-1] !== pts.length - 1) xIdxs.push(pts.length - 1);
   const xLabels = xIdxs.map(i => {
     const d = new Date(pts[i].date);
@@ -3452,10 +3439,10 @@ function renderMileageChart(veh, stats){
     <div class="section" style="margin-top:14px">
       <div class="section-h">
         <h3>📈 Mileage Trend (Full-to-Full)</h3>
-        <span class="sub">${pts.length} data points · unit ${unit}</span>
+        <span class="sub">${pts.length} data points · unit ${unit}${W > 900 ? ' · scroll to see all' : ''}</span>
       </div>
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;min-width:520px;height:auto;display:block">
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;min-width:${W}px;height:auto;display:block">
           ${yTicks}
           ${badLevels.map(l => `
             <line x1="${PAD_L}" x2="${W-PAD_R}" y1="${l.y}" y2="${l.y}" stroke="${l.color}" stroke-width="1" stroke-dasharray="3,3" opacity="${l.opacity}"></line>
@@ -3494,7 +3481,11 @@ function renderGroupedSegmentBars(pts, stats){
   const runUnit = isMachine ? 'hrs' : 'km';
   const runLabel = isMachine ? 'Hours Run' : 'KM Covered';
 
-  const W = 720, H = 200, PAD_L = 48, PAD_R = 60, PAD_T = 30, PAD_B = 28;
+  // Chart width scales with segment count. Each segment gets ~60px so bars
+  // are readable and there's clear space between adjacent groups.
+  const MIN_PX_PER_SEGMENT = 60;
+  const H = 200, PAD_L = 48, PAD_R = 60, PAD_T = 30, PAD_B = 28;
+  const W = Math.max(720, PAD_L + PAD_R + pts.length * MIN_PX_PER_SEGMENT);
   const innerW = W - PAD_L - PAD_R;
   const innerH = H - PAD_T - PAD_B;
 
@@ -3505,17 +3496,19 @@ function renderGroupedSegmentBars(pts, stats){
   const avgRun = runVals.reduce((s,v) => s+v, 0) / runVals.length;
   const avgQty = qtyVals.reduce((s,v) => s+v, 0) / qtyVals.length;
 
-  // Each segment slot has: [ gap | runBar | qtyBar | gap ]
-  // runBar and qtyBar are stuck to each other (no gap between them).
-  const slotW = innerW / pts.length;
-  const barW  = Math.max(3, Math.min(slotW * 0.42, 28));
-  const gap   = Math.max(0.6, slotW * 0.06);   // between adjacent segment groups
-  const y0    = PAD_T + innerH;                 // baseline y
+  // Per-segment slot: [ gapHalf | runBar | 2px | qtyBar | gapHalf ]
+  //   Bars within a group touch (no gap between run and qty of same segment).
+  //   Big visible gap BETWEEN segment groups so each group is visually distinct.
+  const slotW    = innerW / pts.length;
+  const gapRatio = 0.30;                 // 30% of slot is inter-segment gap
+  const groupW   = slotW * (1 - gapRatio);
+  const barW     = (groupW - 2) / 2;     // 2px between the two bars of same segment
+  const y0       = PAD_T + innerH;
 
   const bars = pts.map((p, i) => {
     const slotCenter = PAD_L + (i + 0.5) * slotW;
-    const runX = slotCenter - barW - 0.5;       // left bar (touches right bar in middle)
-    const qtyX = slotCenter + 0.5;              // right bar
+    const runX = slotCenter - barW - 1;   // touches middle divider
+    const qtyX = slotCenter + 1;
     const runH = (runVals[i] / maxRun) * innerH;
     const qtyH = (qtyVals[i] / maxQty) * innerH;
     const runY = y0 - runH;
@@ -3538,11 +3531,10 @@ function renderGroupedSegmentBars(pts, stats){
     `;
   }).join('');
 
-  // Adaptive x-axis date labels
-  const nXLabels = Math.min(pts.length, 6);
-  const step = Math.max(1, Math.floor((pts.length - 1) / Math.max(1, nXLabels - 1)));
+  // X-axis date labels: at least every 3rd segment gets a date (avoids crowding)
+  const dateStep = pts.length > 20 ? Math.ceil(pts.length / 12) : (pts.length > 10 ? 2 : 1);
   const xIdxs = [];
-  for(let i = 0; i < pts.length; i += step) xIdxs.push(i);
+  for(let i = 0; i < pts.length; i += dateStep) xIdxs.push(i);
   if(pts.length > 1 && xIdxs[xIdxs.length-1] !== pts.length - 1) xIdxs.push(pts.length - 1);
   const xLabels = xIdxs.map(i => {
     const d = new Date(pts[i].date);
@@ -3554,10 +3546,10 @@ function renderGroupedSegmentBars(pts, stats){
     <div class="section" style="margin-top:14px">
       <div class="section-h">
         <h3>📊 ${runLabel} vs Diesel — per F2F Segment</h3>
-        <span class="sub">${pts.length} segment${pts.length===1?'':'s'} · paired bars</span>
+        <span class="sub">${pts.length} segment${pts.length===1?'':'s'} · paired bars${W > 900 ? ' · scroll to see all' : ''}</span>
       </div>
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;min-width:${Math.max(520, pts.length * 28)}px;height:auto;display:block">
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;min-width:${W}px;height:auto;display:block">
           <!-- Baseline -->
           <line x1="${PAD_L}" x2="${W-PAD_R}" y1="${y0}" y2="${y0}" stroke="#cbd5e1" stroke-width="1"></line>
 
@@ -4514,7 +4506,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.0</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.1</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -5483,7 +5475,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.0</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.1</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
