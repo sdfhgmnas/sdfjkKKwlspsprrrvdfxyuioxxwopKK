@@ -67,6 +67,19 @@ html{background:#000}
   position:relative;
 }
 #calc-screen.active{ display:flex; }
+/* Desktop: center the calculator but make its column feel intentional, not lost */
+@media(min-width:900px){
+  #calc-screen{
+    max-width:520px;
+    padding:40px 30px 40px 30px;
+    border-left:1px solid #1a1a1a; border-right:1px solid #1a1a1a;
+    box-shadow:0 0 60px rgba(0,0,0,.4);
+  }
+  #calc-screen .calc-current{ font-size:96px; }
+  #calc-screen .calc-btn{ font-size:36px; }
+  /* Dark backdrop wings on both sides so the calc doesn't float in white */
+  body:has(#calc-screen.active){ background:#000; }
+}
 .calc{ width:100%; background:transparent; padding:0; border-radius:0; box-shadow:none; }
 .calc-display{
   background:transparent; padding:30px 14px 20px; margin-bottom:8px;
@@ -163,12 +176,36 @@ html{background:#000}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 
 /* ==================== LOGIN ==================== */
-#login-screen{display:none;align-items:center;justify-content:center;padding:24px;
+#login-screen{display:none;align-items:center;justify-content:center;padding:24px;min-height:100vh;min-height:100dvh;
   background:linear-gradient(180deg,#ecfeff 0%,#f8fafc 100%);}
 #login-screen.active{display:flex}
 .login-card{
   background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:380px;
   box-shadow:var(--shadow);border:1px solid var(--border);
+}
+/* Desktop: bigger login card + hero panel on the left for brand presence */
+@media(min-width:900px){
+  #login-screen{
+    background:
+      radial-gradient(circle at 20% 20%, #cffafe 0%, transparent 45%),
+      radial-gradient(circle at 80% 80%, #e0e7ff 0%, transparent 45%),
+      linear-gradient(180deg,#ecfeff 0%,#f8fafc 100%);
+    padding:40px;
+  }
+  .login-card{
+    max-width:520px;
+    padding:44px 40px;
+    box-shadow:0 20px 60px rgba(15,23,42,.12), 0 4px 12px rgba(15,23,42,.06);
+    border-radius:20px;
+  }
+  .login-title{ font-size:28px !important; }
+  .login-sub  { font-size:15px !important; margin-bottom:28px !important; }
+  .role-tabs  { padding:6px !important; margin-bottom:24px !important; }
+  .role-tab   { padding:12px 16px !important; font-size:14px !important; }
+  .pin-display{ padding:16px 0 !important; gap:12px !important; }
+  .pin-dot    { width:16px !important; height:16px !important; }
+  .pin-pad    { gap:14px !important; }
+  .pin-btn    { font-size:26px !important; height:64px !important; }
 }
 .login-title{font-size:20px;font-weight:700;margin-bottom:4px;letter-spacing:-.3px}
 .login-sub{color:var(--text-muted);font-size:13px;margin-bottom:20px}
@@ -238,6 +275,47 @@ html{background:#000}
 .section-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;flex-wrap:wrap}
 .section-h h3{font-size:14px;font-weight:700;letter-spacing:-.2px}
 .section-h .sub{font-size:11px;color:var(--text-muted);font-weight:500}
+
+/* ============================================================
+   All Entries page — hero header + at-a-glance stat pills.
+   The pills give admins a quick pulse on total scale, today's
+   activity, anomalies, and GPS coverage without opening Overview.
+   ============================================================ */
+.entries-hero{
+  background:linear-gradient(135deg,#ecfeff 0%,#f0fdfa 100%);
+  border:1px solid #a5f3fc;
+  border-radius:14px;
+  padding:16px 18px;
+}
+.stat-pills{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:10px;margin-top:14px;
+}
+.stat-pill{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:#fff;
+  border:1px solid rgba(15,23,42,.06);border-radius:10px;
+  box-shadow:0 1px 2px rgba(15,23,42,.03);
+  transition:transform .12s, box-shadow .12s;
+}
+.stat-pill:hover{transform:translateY(-1px);box-shadow:0 4px 8px rgba(15,23,42,.06)}
+.stat-pill-alert{border-color:#fecaca;background:#fef2f2}
+.stat-pill-icon{
+  width:36px;height:36px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;
+}
+.stat-pill-val{font-size:18px;font-weight:700;line-height:1.1;color:var(--text)}
+.stat-pill-lbl{font-size:11px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Filter count chip — replaces the plain "X entries · Y L" text */
+.filter-count-chip{
+  font-size:11px;font-weight:600;
+  padding:3px 10px;border-radius:999px;
+  background:var(--accent-light);color:var(--accent-dark);
+  border:1px solid #a5f3fc;
+}
+.filter-count-chip:empty{display:none}
 
 .grid{display:grid;gap:10px}
 .grid-2{grid-template-columns:repeat(2,1fr)}
@@ -594,6 +672,15 @@ body.lightbg .admin-btn{
 .sticky-table tbody tr.row-anomaly-high:hover > td.sticky-1     { background: #fdba74 !important; }
 .sticky-table tbody tr.row-anomaly-critical:hover > td,
 .sticky-table tbody tr.row-anomaly-critical:hover > td.sticky-1 { background: #fca5a5 !important; }
+
+/* Colored left border strip on the sticky Vehicle column — impossible to miss */
+.sticky-table tbody tr[class*="row-anomaly-"] > td.sticky-1{
+  position:sticky;box-shadow: inset 4px 0 0 currentColor, 2px 0 4px rgba(0,0,0,.08);
+}
+.sticky-table tbody tr.row-anomaly-medium   > td.sticky-1{ color:#f59e0b; }
+.sticky-table tbody tr.row-anomaly-high     > td.sticky-1{ color:#ea580c; }
+.sticky-table tbody tr.row-anomaly-critical > td.sticky-1{ color:#dc2626; }
+.sticky-table tbody tr[class*="row-anomaly-"] > td.sticky-1 b{ color: var(--text); }
 /* Cards mode equivalent */
 .entry-card.card-anomaly-medium   { background:#fef3c7; border-color:#fcd34d }
 .entry-card.card-anomaly-high     { background:#fed7aa; border-color:#fb923c }
@@ -761,10 +848,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v6.1 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v6.3 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v6.1</span>
+    <span style="opacity:.35;margin-left:6px">v6.3</span>
   </div>
 </div>
 
@@ -806,7 +893,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.1</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.3</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1262,7 +1349,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v6.1] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v6.3] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1688,15 +1775,37 @@ function makePinPad(containerEl, opts){
   pad.addEventListener('click', e=>{
     const b = e.target.closest('[data-d]'); if(b) press(b.dataset.d);
   });
+  // Physical keyboard support — only fires when the login screen is active
+  // AND this PIN pad's container is currently visible. Two pin pads exist
+  // (manager + admin) — the visibility check ensures only the active one
+  // consumes keystrokes.
+  const keyHandler = e => {
+    if(!$('#login-screen').classList.contains('active')) return;
+    // Is this pin pad's container currently displayed?
+    let n = containerEl;
+    while(n && n !== document.body){
+      if(n.style && n.style.display === 'none') return;
+      n = n.parentNode;
+    }
+    if(/^\d$/.test(e.key)){ press(e.key); e.preventDefault(); }
+    else if(e.key === 'Backspace'){ press('back'); e.preventDefault(); }
+    else if(e.key === 'Enter'){ press('ok'); e.preventDefault(); }
+    else if(e.key === 'Escape'){ pin = ''; render(); e.preventDefault(); }
+  };
+  document.addEventListener('keydown', keyHandler);
   render();
   return {
     getPin: ()=>pin,
     clear: ()=>{ pin=''; render(); },
+    destroy: () => document.removeEventListener('keydown', keyHandler),
   };
 }
 
 let _mgrPinPad = null, _ownerPinPad = null;
 function setupLoginPinPads(){
+  // Clean up previous pads to prevent duplicate global keydown handlers
+  if(_mgrPinPad && _mgrPinPad.destroy)   _mgrPinPad.destroy();
+  if(_ownerPinPad && _ownerPinPad.destroy) _ownerPinPad.destroy();
   _mgrPinPad = makePinPad($('#login-mgr-pin'), {
     onSubmit: pin => doManagerLogin(pin),
     expectedLength: () => {
@@ -3027,18 +3136,77 @@ function renderEntriesCardsView(entries, opts={}){
 
 // ---------- OWNER: ALL ENTRIES ----------
 function renderAllEntries(page){
+  // Compute at-a-glance stats over ALL entries (not just filtered) for the top banner.
+  // Filtered totals are shown separately in the filter chip row.
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tMs = today.getTime();
+  const todayEntries = state.entries.filter(e => new Date(e.fill_time||e.created_at).getTime() >= tMs);
+  const todayLiters  = todayEntries.reduce((s,e) => s+(+e.quantity||0), 0);
+  const totalLiters  = state.entries.reduce((s,e) => s+(+e.quantity||0), 0);
+  // Anomaly count (respects the feature toggle)
+  let anomalyCount = 0;
+  if(isFeatureEnabled('anomaly_detection')){
+    for(const e of state.entries){
+      if(detectAnomaly(e)) anomalyCount++;
+    }
+  }
+  // GPS split
+  const gpsLiters = state.entries.reduce((s,e) => {
+    const v = state.vehicles.find(x => x.id === e.vehicle_id);
+    return s + ((v && v.gps_enabled) ? (+e.quantity||0) : 0);
+  }, 0);
+  const gpsPct = totalLiters > 0 ? Math.round((gpsLiters/totalLiters)*100) : 0;
+
   page.innerHTML = `
-    <div class="section">
-      <div class="section-h">
-        <h3>All Fuel Entries</h3>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="sub" id="filter-count"></span>
-          <button class="btn small" onclick="adminAddEntryModal()"><i class="ti ti-plus" style="vertical-align:-2px"></i> Add Entry</button>
+    <!-- Prominent header card with title + prominent Add Entry button -->
+    <div class="section entries-hero">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;color:var(--accent-dark);font-weight:700;letter-spacing:.5px;text-transform:uppercase">📋 Fuel Ledger</div>
+          <h3 style="margin:2px 0 0 0;font-size:20px">All Fuel Entries</h3>
         </div>
+        <button class="btn" onclick="adminAddEntryModal()" style="padding:10px 18px;font-weight:700"><i class="ti ti-plus" style="vertical-align:-2px;margin-right:2px"></i> New Entry</button>
       </div>
 
+      <!-- At-a-glance stat pills — always show total DB stats regardless of filters -->
+      <div class="stat-pills">
+        <div class="stat-pill">
+          <div class="stat-pill-icon" style="background:#eef2ff;color:#4338ca">📊</div>
+          <div>
+            <div class="stat-pill-val">${fmtNum(state.entries.length)}</div>
+            <div class="stat-pill-lbl">${fmtNum(totalLiters,0)} L all time</div>
+          </div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-pill-icon" style="background:#ecfeff;color:#0e7490">🕐</div>
+          <div>
+            <div class="stat-pill-val">${fmtNum(todayEntries.length)}</div>
+            <div class="stat-pill-lbl">${fmtNum(todayLiters,1)} L today</div>
+          </div>
+        </div>
+        <div class="stat-pill ${anomalyCount>0?'stat-pill-alert':''}">
+          <div class="stat-pill-icon" style="background:${anomalyCount>0?'#fee2e2':'#f1f5f9'};color:${anomalyCount>0?'#dc2626':'#64748b'}">⚠</div>
+          <div>
+            <div class="stat-pill-val" style="${anomalyCount>0?'color:#dc2626':''}">${fmtNum(anomalyCount)}</div>
+            <div class="stat-pill-lbl">anomal${anomalyCount===1?'y':'ies'} flagged</div>
+          </div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-pill-icon" style="background:#d1fae5;color:#059669">🛰</div>
+          <div>
+            <div class="stat-pill-val">${gpsPct}%</div>
+            <div class="stat-pill-lbl">GPS-tracked fuel</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
       <div class="form-section" style="background:#fafbff;border:1px solid #e0e7ff">
-        <div class="form-section-label" style="margin-top:0">Filters</div>
+        <div class="form-section-label" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
+          <span>🔍 Filters</span>
+          <span id="filter-count" class="filter-count-chip"></span>
+        </div>
         <div class="grid grid-2" style="margin-bottom:10px">
           <div class="form-row" style="margin:0">
             <label>From date</label>
@@ -4506,7 +4674,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.1</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.3</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -5475,7 +5643,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.1</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.3</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
