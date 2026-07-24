@@ -962,10 +962,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v6.7 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v6.8 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v6.7</span>
+    <span style="opacity:.35;margin-left:6px">v6.8</span>
   </div>
 </div>
 
@@ -1032,7 +1032,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.7</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.8</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1555,7 +1555,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v6.7] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v6.8] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -2223,11 +2223,28 @@ async function trySync(){
       try{
         const { table, action, data, match } = op;
         let res;
-        if(action==='upsert') res = await sb.from(table).upsert(data);
+        // Some tables have a UNIQUE constraint on a non-primary-key column
+        // (e.g. losses.code). For those, upsert must match on that column
+        // so re-inserting a row with the same code updates instead of failing.
+        const upsertOpts = {};
+        if(table === 'losses') upsertOpts.onConflict = 'code';
+
+        if(action==='upsert') res = await sb.from(table).upsert(data, upsertOpts);
         else if(action==='insert') res = await sb.from(table).insert(data);
         else if(action==='update') res = await sb.from(table).update(data).match(match);
         else if(action==='delete') res = await sb.from(table).delete().match(match);
+
         if(res && res.error){
+          // Duplicate-key errors are RECOVERABLE — the row is already in the
+          // database, so this op has effectively succeeded from our POV.
+          // Drop it from the queue silently and continue with the next op
+          // instead of blocking the whole sync.
+          if(res.error.code === '23505'){
+            console.info('sync: dropping duplicate-key op (already in DB)', op.table, data && (data.code || data.id));
+            state.pendingOps = state.pendingOps.filter(p=>p.id!==op.id);
+            persist();
+            continue;
+          }
           console.warn('sync error', op, res.error);
           toast('Sync error: '+(res.error.message||'check console'), 'err');
           break;
@@ -4645,7 +4662,7 @@ window.restoreLossType = function(id){
 };
 
 // ============================================================
-// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.7)
+// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.8)
 // ============================================================
 function renderDriverIncidents(page){
   if(!isFeatureEnabled('driver_timeline')){
@@ -5731,7 +5748,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.7</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.8</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -6948,7 +6965,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.7</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.8</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
