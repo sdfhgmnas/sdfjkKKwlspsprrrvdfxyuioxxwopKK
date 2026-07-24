@@ -962,10 +962,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v6.8 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v6.9 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v6.8</span>
+    <span style="opacity:.35;margin-left:6px">v6.9</span>
   </div>
 </div>
 
@@ -1032,7 +1032,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.8</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.9</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1555,7 +1555,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v6.8] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v6.9] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -2411,27 +2411,69 @@ function isNewEntryDirty(){
 // DRIVER LOSS TRACKING — loss-type catalog CRUD + incident logging
 // ============================================================
 
-// Extract unique driver names from historical entries' custom_data.driver_name.
-// Returns array of distinct names, most-recently-seen first. Case-preserved.
+// Extract unique driver names from EVERY manager's fuel entries and past
+// incident reports. Detection is flexible — we look at every custom field
+// whose label or key contains "driver" (case-insensitive) so admin doesn't
+// have to name the field exactly "driver_name" for this to work.
+//
+// Returns an array of distinct names, most-recently-seen first.
+// Case-insensitive dedup, but original casing preserved in display.
 function getKnownDrivers(){
-  const seen = new Map();   // lowercased name → {name, lastSeen}
-  for(const e of state.entries){
-    const raw = e.custom_data && (e.custom_data.driver_name || e.custom_data['driver name']);
-    if(!raw) continue;
-    const name = String(raw).trim();
-    if(!name) continue;
-    const key = name.toLowerCase();
-    const t = new Date(e.fill_time||e.created_at).getTime();
-    const prev = seen.get(key);
-    if(!prev || t > prev.lastSeen) seen.set(key, {name, lastSeen: t});
+  // 1. Build list of custom-field keys that look like they hold a driver name.
+  //    Anything with "driver" in the key OR the label qualifies.
+  const driverFieldKeys = new Set();
+  for(const cf of state.customFields){
+    const label = String(cf.field_label||'').toLowerCase();
+    const key   = String(cf.field_key  ||'').toLowerCase();
+    if(label.includes('driver') || key.includes('driver')){
+      if(cf.field_key) driverFieldKeys.add(cf.field_key);
+    }
   }
-  // Also include drivers from previously reported incidents (in case they
-  // have no fuel entries yet)
+  // Common fallback keys — covers old data even if no matching custom field
+  // is defined right now. Case variants are handled below by iterating keys.
+  const fallbacks = ['driver_name','driver name','driver','Driver','DRIVER',
+                     'Driver Name','Driver name','DRIVER NAME','driverName'];
+  for(const f of fallbacks) driverFieldKeys.add(f);
+
+  // 2. Scan every entry (across ALL managers) — state.entries is shared.
+  //    Also scan values case-insensitively so we don't miss variants.
+  const seen = new Map();   // lowercased name → {name, lastSeen}
+  const noteName = (name, t) => {
+    const clean = String(name||'').trim();
+    if(!clean) return;
+    const k = clean.toLowerCase();
+    const prev = seen.get(k);
+    if(!prev || t > prev.lastSeen) seen.set(k, { name: clean, lastSeen: t });
+  };
+
+  for(const e of state.entries){
+    if(!e.custom_data) continue;
+    const t = new Date(e.fill_time || e.created_at || 0).getTime();
+    // Try each candidate key against the entry's custom_data
+    for(const k of driverFieldKeys){
+      if(e.custom_data[k] != null && e.custom_data[k] !== ''){
+        noteName(e.custom_data[k], t);
+      }
+    }
+    // ALSO fall back to scanning custom_data keys case-insensitively — this
+    // catches cases where the same conceptual field was renamed / re-cased
+    // between admin edits, and older entries still have the old key.
+    for(const cdKey of Object.keys(e.custom_data)){
+      if(cdKey.toLowerCase().includes('driver')){
+        noteName(e.custom_data[cdKey], t);
+      }
+    }
+  }
+
+  // 3. Include drivers from previously reported incidents (so once you've
+  //    reported an incident, that driver stays in the dropdown even if
+  //    they have no fuel entries yet).
   for(const inc of state.incidents){
     if(!inc.driver_name) continue;
-    const key = inc.driver_name.toLowerCase();
-    if(!seen.has(key)) seen.set(key, {name: inc.driver_name, lastSeen: 0});
+    const k = inc.driver_name.toLowerCase();
+    if(!seen.has(k)) seen.set(k, { name: inc.driver_name, lastSeen: 0 });
   }
+
   return Array.from(seen.values())
     .sort((a,b) => b.lastSeen - a.lastSeen)
     .map(x => x.name);
@@ -4662,7 +4704,7 @@ window.restoreLossType = function(id){
 };
 
 // ============================================================
-// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.8)
+// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.9)
 // ============================================================
 function renderDriverIncidents(page){
   if(!isFeatureEnabled('driver_timeline')){
@@ -5748,7 +5790,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.8</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.9</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -6375,7 +6417,11 @@ function renderReportLoss(page){
       </div>
 
       <div class="form-row">
-        <label>Driver name <span style="color:var(--danger)">*</span></label>
+        <label>Driver name <span style="color:var(--danger)">*</span>
+          <span style="font-weight:400;color:var(--text-muted);font-size:11px">
+            — ${drivers.length} driver${drivers.length===1?'':'s'} known${drivers.length>0?', from all managers\' fuel entries':''}
+          </span>
+        </label>
         ${drivers.length > 0 ? `
           <select id="rl-driver-select" onchange="handleDriverSelectChange()">
             <option value="">— select driver —</option>
@@ -6385,8 +6431,14 @@ function renderReportLoss(page){
           <div id="rl-driver-new-wrap" style="display:none;margin-top:6px">
             <input type="text" id="rl-driver-new" placeholder="Type new driver's full name" maxlength="80">
           </div>
+          <div class="hint" style="font-size:11px;color:var(--text-muted);margin-top:4px">
+            💡 List auto-updates whenever ANY manager logs a new fuel entry with a driver name.
+          </div>
         ` : `
           <input type="text" id="rl-driver-new" placeholder="Type driver's full name" maxlength="80">
+          <div class="hint" style="font-size:11px;color:#a16207;margin-top:4px">
+            ⚠ No drivers found in fuel entries yet. Ask admin to set up a Custom Field named "driver" or "driver_name" so managers can record who drove.
+          </div>
         `}
       </div>
 
@@ -6965,7 +7017,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.8</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.9</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
