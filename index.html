@@ -962,10 +962,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v6.9 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v6.10 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v6.9</span>
+    <span style="opacity:.35;margin-left:6px">v6.10</span>
   </div>
 </div>
 
@@ -994,6 +994,7 @@ body.lightbg .admin-btn{
 
         <div class="role-tabs">
           <button class="role-tab active" data-role="manager">Diesel Manager</button>
+          <button class="role-tab" data-role="ops">👔 Ops Manager</button>
           <button class="role-tab" data-role="owner">🔒 Admin</button>
         </div>
 
@@ -1016,6 +1017,22 @@ body.lightbg .admin-btn{
           </div>
         </div>
 
+        <div id="login-ops" style="display:none">
+          <div class="form-row">
+            <label>Select your name</label>
+            <select id="login-ops-select"><option value="">— select —</option></select>
+          </div>
+          <div id="login-ops-pin-wrap" class="pin-hidden">
+            <div class="form-row" style="margin-bottom:6px">
+              <label id="login-ops-pin-label">Enter PIN</label>
+            </div>
+            <div id="login-ops-pin"></div>
+          </div>
+          <div id="login-ops-hint" class="login-hint">
+            <span class="login-hint-icon">👆</span> Pick your name above to enter your PIN
+          </div>
+        </div>
+
         <div id="login-owner" style="display:none">
           <div class="form-row">
             <label>Admin PIN</label>
@@ -1032,7 +1049,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.9</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.10</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1216,6 +1233,23 @@ function isFeatureEnabled(key){
   const v = state.settings['feature_'+key];
   return v === undefined || v === null || v === '' || v === 'true';
 }
+
+// Role helpers — Operation Manager (`ops`) is a viewing role with a fixed
+// subset of admin tabs. They should NEVER see edit / delete / add controls.
+// Use `canEdit()` at every mutation UI site instead of hardcoding role checks.
+function canEdit(){
+  // Only full admin can perform destructive actions on shared data.
+  return state.user && state.user.role === 'owner';
+}
+function isOwner(){
+  return !!(state.user && state.user.role === 'owner');
+}
+function isOpsManager(){
+  return !!(state.user && state.user.role === 'ops');
+}
+function isDieselManager(){
+  return !!(state.user && state.user.role === 'manager');
+}
 const DEVICE_ID = (() => {
   let d = localStorage.getItem('tasr_device_id');
   if(!d){ d = 'dev_'+Math.random().toString(36).slice(2,10); localStorage.setItem('tasr_device_id',d); }
@@ -1238,6 +1272,7 @@ const state = {
   user: null,              // {role:'owner'|'manager', id?, name?}
   vehicles: [],
   managers: [],
+  opsManagers: [],         // Operation Managers — read-only-ish role, 5 slots
   customFields: [],
   entries: [],
   losses: [],              // configurable loss types (admin CRUD)
@@ -1555,7 +1590,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v6.9] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v6.10] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -1582,10 +1617,11 @@ function gotoLogin(){
   showScreen('login-screen');
   $('#login-msg').innerHTML='';
   refreshManagerLoginDropdown();
+  refreshOpsLoginDropdown();
   setupLoginPinPads();
-  // Reset PIN-pad visibility: only appears after manager selects their name.
-  // Admin PIN pad stays visible when the Admin tab is chosen (only one name = the admin).
+  // Reset PIN-pad visibility for both selectable-name roles
   setManagerPinVisible(false);
+  setOpsPinVisible(false);
   const fab=document.getElementById('fab'); if(fab) fab.style.display='none';
 }
 // Show/hide the manager PIN pad and toggle the "pick your name" hint.
@@ -1611,6 +1647,27 @@ function setManagerPinVisible(show){
     if(_mgrPinPad && _mgrPinPad.clear) _mgrPinPad.clear();
   }
 }
+// Same reveal pattern for the Operation Manager PIN pad.
+function setOpsPinVisible(show){
+  const wrap = document.getElementById('login-ops-pin-wrap');
+  const hint = document.getElementById('login-ops-hint');
+  const lbl  = document.getElementById('login-ops-pin-label');
+  if(!wrap) return;
+  if(show){
+    wrap.classList.remove('pin-hidden');
+    wrap.classList.add('pin-visible');
+    if(hint) hint.style.display = 'none';
+    const id = parseInt($('#login-ops-select').value);
+    const m = state.opsManagers.find(x => x.id === id);
+    if(lbl && m) lbl.textContent = `Hi ${m.name} — enter your PIN`;
+  } else {
+    wrap.classList.add('pin-hidden');
+    wrap.classList.remove('pin-visible');
+    if(hint) hint.style.display = '';
+    if(lbl) lbl.textContent = 'Enter PIN';
+    if(_opsPinPad && _opsPinPad.clear) _opsPinPad.clear();
+  }
+}
 function gotoDash(){
   setLightBg(true);
   showScreen('dash-screen'); renderDash();
@@ -1623,6 +1680,12 @@ function gotoDash(){
 function refreshManagerLoginDropdown(){
   const sel = $('#login-mgr-select');
   const active = state.managers.filter(m=>m.active);
+  sel.innerHTML = '<option value="">— select —</option>' + active.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+}
+function refreshOpsLoginDropdown(){
+  const sel = $('#login-ops-select');
+  if(!sel) return;
+  const active = state.opsManagers.filter(m=>m.active);
   sel.innerHTML = '<option value="">— select —</option>' + active.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
 }
 
@@ -2033,16 +2096,25 @@ function makePinPad(containerEl, opts){
   };
 }
 
-let _mgrPinPad = null, _ownerPinPad = null;
+let _mgrPinPad = null, _ownerPinPad = null, _opsPinPad = null;
 function setupLoginPinPads(){
   // Clean up previous pads to prevent duplicate global keydown handlers
   if(_mgrPinPad && _mgrPinPad.destroy)   _mgrPinPad.destroy();
   if(_ownerPinPad && _ownerPinPad.destroy) _ownerPinPad.destroy();
+  if(_opsPinPad && _opsPinPad.destroy)   _opsPinPad.destroy();
   _mgrPinPad = makePinPad($('#login-mgr-pin'), {
     onSubmit: pin => doManagerLogin(pin),
     expectedLength: () => {
       const id = parseInt($('#login-mgr-select').value);
       const m = state.managers.find(m=>m.id===id);
+      return m && m.password ? m.password.length : 0;
+    },
+  });
+  _opsPinPad = makePinPad($('#login-ops-pin'), {
+    onSubmit: pin => doOpsLogin(pin),
+    expectedLength: () => {
+      const id = parseInt($('#login-ops-select').value);
+      const m = state.opsManagers.find(m=>m.id===id);
       return m && m.password ? m.password.length : 0;
     },
   });
@@ -2076,6 +2148,19 @@ function doManagerLogin(pin){
   state.activeTab = 'new-entry';
   gotoDash();
 }
+// Operation Manager login — same pattern as diesel manager but hits the
+// opsManagers table. Successful login lands on the Overview tab (viewer's
+// starting point, not New Entry).
+function doOpsLogin(pin){
+  const id = parseInt($('#login-ops-select').value);
+  const mgr = state.opsManagers.find(m => m.id === id && m.active);
+  if(!mgr){ $('#login-msg').innerHTML = '<div class="msg err">Select your name first</div>'; if(_opsPinPad) _opsPinPad.clear(); return; }
+  if(!mgr.password){ $('#login-msg').innerHTML = '<div class="msg err">No PIN set for this account — ask admin</div>'; if(_opsPinPad) _opsPinPad.clear(); return; }
+  if(mgr.password !== pin){ $('#login-msg').innerHTML = '<div class="msg err">Incorrect PIN</div>'; if(_opsPinPad) _opsPinPad.clear(); return; }
+  state.user = {role:'ops', id:mgr.id, name:mgr.name};
+  state.activeTab = 'overview';
+  gotoDash();
+}
 
 // ============================================================
 // LOGIN
@@ -2085,20 +2170,30 @@ $$('.role-tab').forEach(t=>t.addEventListener('click', ()=>{
   t.classList.add('active');
   const r = t.dataset.role;
   $('#login-manager').style.display = r==='manager' ? '' : 'none';
+  $('#login-ops').style.display     = r==='ops'     ? '' : 'none';
   $('#login-owner').style.display   = r==='owner'   ? '' : 'none';
   $('#login-msg').innerHTML='';
-  if(_mgrPinPad) _mgrPinPad.clear();
+  if(_mgrPinPad)   _mgrPinPad.clear();
+  if(_opsPinPad)   _opsPinPad.clear();
   if(_ownerPinPad) _ownerPinPad.clear();
-  // Reset visibility so the pad hides again if the manager hasn't yet picked a name
+  // Reset PIN-pad visibility for the manager-style tabs
   if(r === 'manager'){
     const sel = $('#login-mgr-select');
     setManagerPinVisible(!!(sel && sel.value));
+  } else if(r === 'ops'){
+    const sel = $('#login-ops-select');
+    setOpsPinVisible(!!(sel && sel.value));
   }
 }));
 
 // Manager dropdown → reveal PIN pad and greet them by name
 $('#login-mgr-select').addEventListener('change', () => {
   setManagerPinVisible(!!$('#login-mgr-select').value);
+});
+
+// Ops dropdown → same reveal-on-select behaviour
+$('#login-ops-select').addEventListener('change', () => {
+  setOpsPinVisible(!!$('#login-ops-select').value);
 });
 
 $('#login-back').addEventListener('click', gotoCalc);
@@ -2127,7 +2222,7 @@ async function pullAll(){
   if(!sb) return;
   try{
     state.syncing = true; _syncingStart = Date.now(); updateSyncPill();
-    const [veh, mgr, cf, ent, st, lss, inc] = await Promise.all([
+    const [veh, mgr, cf, ent, st, lss, inc, ops] = await Promise.all([
       sb.from('vehicles').select('*').order('name'),
       sb.from('managers').select('*').order('id'),
       sb.from('custom_fields').select('*').order('sort_order'),
@@ -2135,6 +2230,7 @@ async function pullAll(){
       sb.from('settings').select('*'),
       sb.from('losses').select('*').order('sort_order'),
       sb.from('driver_incidents').select('*').order('incident_date',{ascending:false}).limit(2000),
+      sb.from('operation_managers').select('*').order('id'),
     ]);
 
     // Helper: merge a freshly-pulled remote list with any locally-pending (unsynced)
@@ -2172,6 +2268,7 @@ async function pullAll(){
     if(!ent.error) state.entries = mergeWithPending(ent.data, 'entries', state.entries);
     if(!lss.error) state.losses = mergeWithPending(lss.data, 'losses', state.losses);
     if(!inc.error) state.incidents = mergeWithPending(inc.data, 'driver_incidents', state.incidents);
+    if(!ops.error) state.opsManagers = mergeWithPending(ops.data, 'operation_managers', state.opsManagers);
     if(!st.error && st.data){
       st.data.forEach(r => { state.settings[r.key] = r.value; });
     }
@@ -2542,7 +2639,15 @@ function renderDash(opts){
     return;
   }
   $('#who-name').textContent = state.user.name;
-  $('#who-role').textContent = state.user.role === 'owner' ? '🔒 Admin · Full access' : 'Diesel Manager';
+  $('#who-role').textContent = state.user.role === 'owner' ? '🔒 Admin · Full access'
+                              : state.user.role === 'ops' ? '👔 Operation Manager · Read-only'
+                              : 'Diesel Manager';
+  // The top-right 🔒 button opens the Administrator Panel — only useful for
+  // admins and ops managers who might want to elevate. Hide for Diesel Managers.
+  const adminBtn = document.getElementById('admin-btn');
+  if(adminBtn){
+    adminBtn.style.display = state.user.role === 'manager' ? 'none' : '';
+  }
 
   const disabledPages = (state.settings.admin_pages_disabled || '').split(',').map(s=>s.trim()).filter(Boolean);
   const allOwnerTabs = [
@@ -2559,9 +2664,14 @@ function renderDash(opts){
     {key:'audit',      label:'Audit Log'},
     {key:'settings',   label:'Settings'},
   ];
-  // Filter admin tabs by feature-flag (if a tab has one) + disabled-pages list
+  // Filter admin tabs by feature-flag (if a tab has one) + disabled-pages list.
+  // For Operation Managers, use a FIXED subset — they never see Managers,
+  // Custom Fields, Export, Audit Log, or Settings, and they cannot log entries.
+  const OPS_ALLOWED_TAB_KEYS = new Set(['overview','entries','reports','analysis','incidents','losses','vehicles']);
   const tabs = state.user.role === 'owner'
     ? allOwnerTabs.filter(t => !disabledPages.includes(t.key) && (!t.feature || isFeatureEnabled(t.feature)))
+    : state.user.role === 'ops'
+    ? allOwnerTabs.filter(t => OPS_ALLOWED_TAB_KEYS.has(t.key) && (!t.feature || isFeatureEnabled(t.feature)))
     : (() => {
         const mgrTabs = [
           {key:'new-entry',  label:'New Entry'},
@@ -2577,7 +2687,7 @@ function renderDash(opts){
       })();
 
   // If the user's currently active tab has been disabled by Admin, jump to first available
-  if(state.user.role === 'owner' && !tabs.some(t => t.key === state.activeTab)){
+  if((state.user.role === 'owner' || state.user.role === 'ops') && !tabs.some(t => t.key === state.activeTab)){
     state.activeTab = tabs.length ? tabs[0].key : 'overview';
   }
 
@@ -2606,10 +2716,14 @@ function renderDash(opts){
   const page = document.createElement('div'); page.className='page active';
   pages.appendChild(page);
 
-  if(state.user.role === 'owner'){
-    // Guard: skip rendering for any tab that admin has disabled
-    if(disabledPages.includes(state.activeTab)){
+  if(state.user.role === 'owner' || state.user.role === 'ops'){
+    // Guard: skip rendering for any tab that admin has disabled (owner only —
+    // Ops don't see disabled-pages toggle since they have a fixed tab set).
+    if(state.user.role === 'owner' && disabledPages.includes(state.activeTab)){
       page.innerHTML = '<div class="section"><div class="empty"><div class="em">🔒</div>This page has been disabled by administrator.</div></div>';
+    } else if(state.user.role === 'ops' && !OPS_ALLOWED_TAB_KEYS.has(state.activeTab)){
+      // Defensive: if URL manipulation somehow lands ops on a forbidden tab
+      page.innerHTML = '<div class="section"><div class="empty"><div class="em">🔒</div>Operation Managers cannot access this page.</div></div>';
     } else if(state.activeTab==='overview') renderOverview(page);
     else if(state.activeTab==='entries') renderAllEntries(page);
     else if(state.activeTab==='reports') renderReports(page);
@@ -3594,7 +3708,7 @@ function renderAllEntries(page){
           <div style="font-size:11px;color:var(--accent-dark);font-weight:700;letter-spacing:.5px;text-transform:uppercase">📋 Fuel Ledger</div>
           <h3 style="margin:2px 0 0 0;font-size:20px">All Fuel Entries</h3>
         </div>
-        <button class="btn" onclick="adminAddEntryModal()" style="padding:10px 18px;font-weight:700"><i class="ti ti-plus" style="vertical-align:-2px;margin-right:2px"></i> New Entry</button>
+        <button class="btn" onclick="adminAddEntryModal()" style="padding:10px 18px;font-weight:700;${isOwner()?'':'display:none'}"><i class="ti ti-plus" style="vertical-align:-2px;margin-right:2px"></i> New Entry</button>
       </div>
 
       <!-- At-a-glance stat pills — always show total DB stats regardless of filters -->
@@ -3713,7 +3827,7 @@ function renderAllEntries(page){
     });
     const total = list.reduce((s,e)=>s+(+e.quantity||0), 0);
     $('#filter-count').textContent = fmtNum(list.length) + ' entries · ' + fmtNum(total, 1) + ' L total';
-    $('#entries-table').innerHTML = renderEntriesTable(list, {showManager:true, canEdit:true});
+    $('#entries-table').innerHTML = renderEntriesTable(list, {showManager:true, canEdit: isOwner()});
   };
 
   // Wire searchable vehicle filter
@@ -4270,7 +4384,7 @@ function renderVehicles(page){
         <th>Name</th>
         <th>Branch</th>
         <th>Status</th>
-        <th></th>
+        ${isOwner()?'<th></th>':''}
       </tr></thead>
       <tbody>${list.map((v, idx)=>`
         <tr>
@@ -4283,10 +4397,10 @@ function renderVehicles(page){
           <td>${escapeHtml(v.name && v.name!==v.reg_no ? v.name : '—')}</td>
           <td>${escapeHtml(v.branch||'—')}</td>
           <td>${v.active===false?'<span class="badge off">Inactive</span>':'<span class="badge ok">Active</span>'}</td>
-          <td><div class="row-actions">
+          ${isOwner() ? `<td><div class="row-actions">
             <button class="icon-btn" title="Edit" onclick="editVehicleModal('${v.id}')">✎</button>
             <button class="icon-btn danger" title="Delete" onclick="confirmDeleteVehicle('${v.id}')">🗑</button>
-          </div></td>
+          </div></td>` : ''}
         </tr>`).join('')}
       </tbody></table></div>`;
   }
@@ -4297,15 +4411,15 @@ function renderVehicles(page){
         <h3>Vehicles & Machines</h3>
         <div style="display:flex;align-items:center;gap:10px">
           ${isFeatureEnabled('vehicle_clickable')?'<span class="sub" style="font-size:11px">💡 Click reg no to view analysis</span>':''}
-          <button class="btn small" onclick="addVehicleModal()">+ Add</button>
+          ${isOwner() ? '<button class="btn small" onclick="addVehicleModal()">+ Add</button>' : ''}
         </div>
       </div>
       ${state.vehicles.length===0
         ? `<div class="empty">
             <div class="em">🚜</div>
             <div style="font-weight:600;color:var(--text);margin-bottom:4px">No vehicles or machines added yet</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Add at least one to enable fuel entries by managers.</div>
-            <button class="btn small" onclick="addVehicleModal()">+ Add First Vehicle</button>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">${isOwner()?'Add at least one to enable fuel entries by managers.':'Ask admin to add vehicles.'}</div>
+            ${isOwner() ? '<button class="btn small" onclick="addVehicleModal()">+ Add First Vehicle</button>' : ''}
           </div>`
         : `
           <div class="section-h" style="margin-top:6px;margin-bottom:6px"><h3 style="font-size:14px"><i class="ti ti-truck" style="vertical-align:-2px;margin-right:4px"></i>Vehicles</h3><span class="sub">${vehicles.length}</span></div>
@@ -4448,8 +4562,115 @@ function renderManagers(page){
         💡 Use <b>Edit</b> to change a manager's name or PIN. Use <b>Grant / Revoke</b> for quick access changes without editing anything else.
       </div>
     </div>
+
+    ${renderOpsManagersSection()}
   `;
 }
+
+// Ops Managers section — appended to the Managers tab. Same slot pattern
+// as diesel managers but with view-only role at login: Ops sees a fixed
+// subset of admin pages (overview, entries, reports, analysis, drivers,
+// losses, vehicles) and cannot perform any add/edit/delete actions.
+function renderOpsManagersSection(){
+  const active = state.opsManagers.filter(m => m.active).length;
+  const inactive = state.opsManagers.length - active;
+  return `
+    <div class="section" style="margin-top:20px">
+      <div class="section-h">
+        <h3>👔 Operation Managers · Read-Only Access</h3>
+        <span class="sub">${active} of ${state.opsManagers.length} active</span>
+      </div>
+      <div style="background:#f0f9ff;border:1px solid #7dd3fc;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:12px;color:#075985">
+        👔 <b>Operation Managers</b> can log in and view: Overview · All Entries · Reports · Analysis · Drivers · Loss Types · Vehicles.
+        They <b>cannot</b> log fuel entries, edit/delete anything, or manage settings. Perfect for supervisors, auditors, or client stakeholders who need read-only visibility.
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <div class="mgr-stat mgr-stat-active">
+          <div class="mgr-stat-val">${active}</div>
+          <div class="mgr-stat-lbl">🟢 With login access</div>
+        </div>
+        <div class="mgr-stat mgr-stat-inactive">
+          <div class="mgr-stat-val">${inactive}</div>
+          <div class="mgr-stat-lbl">⛔ Access removed</div>
+        </div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th style="width:40px">#</th>
+          <th>Name</th>
+          <th>PIN</th>
+          <th>Access</th>
+          <th style="text-align:right">Actions</th>
+        </tr></thead>
+        <tbody>${state.opsManagers.map(m=>`
+          <tr>
+            <td><b>${m.id}</b></td>
+            <td>${escapeHtml(m.name)}</td>
+            <td style="font-family:monospace;color:${(m.password||'')?'var(--text)':'var(--text-soft)'}">${'•'.repeat(Math.min(8,(m.password||'').length))||'not set'}</td>
+            <td>${m.active
+              ? '<span class="badge ok">🟢 Granted</span>'
+              : '<span class="badge off">⛔ Revoked</span>'}</td>
+            <td style="text-align:right">
+              <div class="row-actions" style="justify-content:flex-end">
+                ${m.active
+                  ? `<button class="btn xs" style="background:#fef2f2;color:#991b1b;border:1px solid #fca5a5" onclick="toggleOpsAccess(${m.id})">⛔ Revoke</button>`
+                  : `<button class="btn xs" style="background:#dcfce7;color:#166534;border:1px solid #86efac" onclick="toggleOpsAccess(${m.id})">🟢 Grant</button>`}
+                <button class="btn xs ghost" onclick="editOpsModal(${m.id})">Edit</button>
+              </div>
+            </td>
+          </tr>`).join('')}
+        </tbody></table></div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:10px">
+        💡 Set a PIN for a slot then grant access — the operation manager will appear in the "👔 Ops Manager" tab on the login screen.
+      </div>
+    </div>
+  `;
+}
+
+// OPS MANAGER CRUD helpers
+function updateOpsManager(id, patch){
+  const i = state.opsManagers.findIndex(m => m.id === id);
+  if(i < 0) return;
+  state.opsManagers[i] = {...state.opsManagers[i], ...patch, updated_at: new Date().toISOString()};
+  persist();
+  queueOp({table:'operation_managers', action:'upsert', data: state.opsManagers[i]});
+}
+
+window.editOpsModal = function(id){
+  const m = state.opsManagers.find(x=>x.id===id); if(!m) return;
+  openModal(`Edit Operation Manager #${id}`, `
+    <div class="form-row"><label>Name</label>
+      <input id="opsm-name" value="${escapeHtml(m.name)}" placeholder="e.g. Ravi (Operations)"></div>
+    <div class="form-row"><label>PIN (4–8 digits)</label>
+      <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" id="opsm-pass" value="${escapeHtml(m.password||'')}" placeholder="e.g. 5678"></div>
+    <div class="form-row"><label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)">
+      <input type="checkbox" id="opsm-active" ${m.active?'checked':''} style="width:auto;transform:scale(1.2)"> Active (can login)
+    </label></div>
+    <button class="btn" style="width:100%" onclick="saveOpsManager(${id})">Save</button>
+  `);
+};
+window.saveOpsManager = function(id){
+  const pin = $('#opsm-pass').value.trim();
+  if(pin && !/^\d{4,8}$/.test(pin)){ toast('PIN must be 4–8 digits','err'); return; }
+  updateOpsManager(id, {
+    name: $('#opsm-name').value.trim() || ('Ops Manager '+id),
+    password: pin,
+    active: $('#opsm-active').checked,
+  });
+  closeModal(); renderDash(); toast('Operation manager updated','ok');
+};
+window.toggleOpsAccess = function(id){
+  const m = state.opsManagers.find(x => x.id === id); if(!m) return;
+  const willActivate = !m.active;
+  const label = escapeHtml(m.name);
+  if(willActivate && !m.password){
+    toast('Set a PIN first (via Edit) before granting access','err');
+    return;
+  }
+  updateOpsManager(id, { active: willActivate });
+  renderDash();
+  toast(willActivate ? 'Access granted' : 'Access revoked','ok');
+};
 
 // Quick access-toggle — flips manager.active without opening the edit modal.
 window.toggleManagerAccess = function(id){
@@ -4532,19 +4753,19 @@ function renderLossTypes(page){
   page.innerHTML = `
     <div class="section">
       <div class="section-h">
-        <h3>⚠ Loss Types & Access Control</h3>
+        <h3>⚠ Loss Types${isOwner()?' & Access Control':''}</h3>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="sub">${activeCount} active · ${inactiveCount} archived</span>
-          <button class="btn small" onclick="addLossTypeModal()"><i class="ti ti-plus" style="vertical-align:-2px"></i> Add Type</button>
+          ${isOwner() ? '<button class="btn small" onclick="addLossTypeModal()"><i class="ti ti-plus" style="vertical-align:-2px"></i> Add Type</button>' : ''}
         </div>
       </div>
 
       <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:12px;color:#1e40af">
         💡 <b>Loss types</b> are the fixed catalog of incidents that managers can report against drivers.
-        Add / edit / archive them here. Deleting a type <b>preserves</b> past incident records — the type just won't appear in new reports.
+        ${isOwner() ? 'Add / edit / archive them here. Deleting a type <b>preserves</b> past incident records — the type just won\'t appear in new reports.' : 'View-only for Operation Managers — ask admin to modify.'}
       </div>
 
-      <div style="background:#fefce8;border:1px solid #fde047;padding:12px 14px;border-radius:8px;margin-bottom:14px">
+      ${isOwner() ? `<div style="background:#fefce8;border:1px solid #fde047;padding:12px 14px;border-radius:8px;margin-bottom:14px">
         <div style="font-weight:700;color:#854d0e;font-size:13px;margin-bottom:6px">👁 Manager Visibility of Incident Log</div>
         <div style="font-size:11px;color:#854d0e;margin-bottom:8px">Who can see the reported incidents from the manager side?</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -4553,10 +4774,10 @@ function renderLossTypes(page){
           `).join('')}
         </div>
         <div style="font-size:11px;color:#854d0e;margin-top:8px;font-style:italic">${escapeHtml(modeLabels[accessMode].desc)}</div>
-      </div>
+      </div>` : ''}
 
       ${state.losses.length === 0
-        ? `<div class="empty"><div class="em">⚠</div>No loss types configured yet.<br>Click "+ Add Type" to create your first one, or restart the app to auto-seed 25 defaults.</div>`
+        ? `<div class="empty"><div class="em">⚠</div>No loss types configured yet.${isOwner()?'<br>Click "+ Add Type" to create your first one, or restart the app to auto-seed 25 defaults.':''}</div>`
         : Object.keys(LOSS_CATEGORIES).filter(c => grouped[c]).map(cat => {
           const meta = LOSS_CATEGORIES[cat];
           return `
@@ -4582,12 +4803,12 @@ function renderLossTypes(page){
                           </div>
                         </div>
                       </div>
-                      <div class="row-actions" style="gap:4px">
+                      ${isOwner() ? `<div class="row-actions" style="gap:4px">
                         ${inactive
                           ? `<button class="btn xs" style="background:#dcfce7;color:#166534;border:1px solid #86efac" onclick="restoreLossType('${l.id}')" title="Re-enable this loss type">↩ Restore</button>`
                           : `<button class="btn xs" style="background:#fef2f2;color:#991b1b;border:1px solid #fca5a5" onclick="confirmDeleteLossType('${l.id}')" title="Archive — hides from new reports but preserves history">🗑 Archive</button>`}
                         <button class="btn xs ghost" onclick="editLossTypeModal('${l.id}')">Edit</button>
-                      </div>
+                      </div>` : ''}
                     </div>
                   `;
                 }).join('')}
@@ -4704,7 +4925,7 @@ window.restoreLossType = function(id){
 };
 
 // ============================================================
-// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.9)
+// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.10)
 // ============================================================
 function renderDriverIncidents(page){
   if(!isFeatureEnabled('driver_timeline')){
@@ -4897,7 +5118,7 @@ function renderDriverIncidents(page){
           <h3>📋 Full Timeline</h3>
           <span class="sub">${filtered.length} incident${filtered.length===1?'':'s'}, newest first</span>
         </div>
-        ${renderIncidentList(filtered, /*showManager*/ true, /*showActions*/ true)}
+        ${renderIncidentList(filtered, /*showManager*/ true, /*showActions*/ isOwner())}
       </div>
     ` : `
       <div class="section" style="margin-top:14px">
@@ -5790,7 +6011,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.9</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.10</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -7017,7 +7238,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.9</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.10</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
