@@ -962,10 +962,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v6.13 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v6.15 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v6.13</span>
+    <span style="opacity:.35;margin-left:6px">v6.15</span>
   </div>
 </div>
 
@@ -1049,7 +1049,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.13</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.15</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1592,7 +1592,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v6.13] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v6.15] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -3584,7 +3584,7 @@ function buildEntryDisplay(e){
 // Click any header to sort. Vertical scroll is page-level so admin sees ALL entries.
 function renderEntriesTableView(entries, opts={}){
   const showMgr = opts.showManager !== false;
-  const canEdit = opts.canEdit;
+  const showEditCol = opts.canEdit;
   const sorted = sortEntries(entries);
 
   const rows = sorted.map(e => {
@@ -3609,7 +3609,7 @@ function renderEntriesTableView(entries, opts={}){
       <td>${escapeHtml(d.src)}</td>
       ${cfCells}
       <td>${d.editBadge}</td>
-      ${canEdit?`<td><div class="row-actions">
+      ${showEditCol?`<td><div class="row-actions">
         <button class="btn small ghost" onclick="editEntryModal('${e.id}')">Edit</button>
         ${canEdit() ? `<button class="icon-btn danger" title="Delete" onclick="confirmDeleteEntry('${e.id}')">🗑</button>` : ''}
       </div></td>`:''}
@@ -3632,7 +3632,7 @@ function renderEntriesTableView(entries, opts={}){
       <th class="${sortedClass('source')}" onclick="sortBy('source')">Source ${sortArrow('source')}</th>
       ${state.customFields.map(f=>`<th>${escapeHtml(f.field_label)}</th>`).join('')}
       <th></th>
-      ${canEdit?'<th></th>':''}
+      ${showEditCol?'<th></th>':''}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
@@ -3641,7 +3641,7 @@ function renderEntriesTableView(entries, opts={}){
 // Card view — one card per entry, stacked, mobile-friendly. No horizontal scroll.
 function renderEntriesCardsView(entries, opts={}){
   const showMgr = opts.showManager !== false;
-  const canEdit = opts.canEdit;
+  const showEditCol = opts.canEdit;
   const sorted = sortEntries(entries);
   const cards = sorted.map(e => {
     const d = buildEntryDisplay(e);
@@ -3670,9 +3670,9 @@ function renderEntriesCardsView(entries, opts={}){
           <div class="lbl">Diff (GPS − F2F) L</div><div class="val">${d.diffCell}</div>
           ${customRows}
         </div>
-        ${canEdit?`<div class="entry-card-actions">
+        ${showEditCol?`<div class="entry-card-actions">
           <button class="btn small ghost" onclick="editEntryModal('${e.id}')">Edit</button>
-          ${state.user && state.user.role==='owner' ? `<button class="btn small ghost" style="color:var(--danger);border-color:#fecaca" onclick="confirmDeleteEntry('${e.id}')">🗑 Delete</button>` : ''}
+          ${canEdit() ? `<button class="btn small ghost" style="color:var(--danger);border-color:#fecaca" onclick="confirmDeleteEntry('${e.id}')">🗑 Delete</button>` : ''}
         </div>`:''}
       </div>`;
   }).join('');
@@ -4928,7 +4928,7 @@ window.restoreLossType = function(id){
 };
 
 // ============================================================
-// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.13)
+// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.15)
 // ============================================================
 function renderDriverIncidents(page){
   if(!isFeatureEnabled('driver_timeline')){
@@ -6014,7 +6014,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.13</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.15</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -6481,14 +6481,20 @@ window.saveNewEntry = function(){
 
 // ---------- MANAGER: MY ENTRIES ----------
 function renderMyEntries(page){
+  try {
+    // Defensive: ensure filter object exists (old localStorage may lack it)
+    if(!state.myEntriesFilter || typeof state.myEntriesFilter !== 'object'){
+      state.myEntriesFilter = { from:'', to:'', vehicleId:'', vehicleText:'' };
+    }
   // Match by BOTH manager_id (preferred, when set) AND manager_name (fallback).
   // This catches:
   //   - Entries where manager_id may have drifted (data migration, bulk import)
   //   - Entries created before the manager schema had ids consistently set
   //   - String↔number type mismatches from the Supabase driver
-  const uid = state.user.id;
-  const uname = (state.user.name || '').trim().toLowerCase();
-  const mine = state.entries.filter(e => {
+  const uid = state.user && state.user.id;
+  const uname = ((state.user && state.user.name) || '').trim().toLowerCase();
+  const mine = (state.entries || []).filter(e => {
+    if(!e) return false;
     if(e.manager_id != null && String(e.manager_id) === String(uid)) return true;
     if(uname && (e.manager_name || '').trim().toLowerCase() === uname) return true;
     return false;
@@ -6594,6 +6600,19 @@ function renderMyEntries(page){
     el.addEventListener('change', window._refilterMyEntries);
   });
   window._refilterMyEntries();
+  } catch(err) {
+    // Any exception during render — show it inline instead of a blank page.
+    console.error('renderMyEntries crashed:', err);
+    page.innerHTML = `
+      <div class="section">
+        <div style="background:#fef2f2;border:1px solid #fca5a5;padding:14px;border-radius:8px;color:#991b1b">
+          <div style="font-weight:700;margin-bottom:6px">⚠ My Entries could not load</div>
+          <div style="font-size:12px;margin-bottom:8px">${escapeHtml(err.message || String(err))}</div>
+          <div style="font-size:11px;color:#7f1d1d">This is a bug — screenshot this + open browser DevTools (F12 → Console) to share the full stack trace with support.</div>
+        </div>
+      </div>
+    `;
+  }
 }
 
 window.setMyEntriesPreset = function(p){
@@ -7260,7 +7279,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.13</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.15</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
