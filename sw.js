@@ -1,17 +1,17 @@
-// TASR BharatNext Fuel Manager — Service Worker v6.13
+// TASR BharatNext Fuel Manager — Service Worker v6.15
 // Minimal, foolproof: NO pre-cache (which was breaking fresh installs).
 // Caches resources only as they're fetched. HTML always network-first.
- 
-const CACHE_VERSION = 'tasr-fuel-v6.13';
+
+const CACHE_VERSION = 'tasr-fuel-v6.15';
 const CACHE_NAME = CACHE_VERSION + '-runtime';
- 
+
 // INSTALL — don't pre-fetch anything. Pre-caching was causing fresh installs
 // to fail silently when even one URL 404'd or timed out on slow networks.
 self.addEventListener('install', event => {
   console.log('[TASR-SW] Installing', CACHE_VERSION);
   self.skipWaiting();
 });
- 
+
 // ACTIVATE — clear all old version caches, take over all open pages
 self.addEventListener('activate', event => {
   console.log('[TASR-SW] Activating', CACHE_VERSION);
@@ -25,23 +25,23 @@ self.addEventListener('activate', event => {
       .then(() => self.clients.claim())
   );
 });
- 
+
 // FETCH — never intercept Supabase calls; HTML = network-first; else = cache-first
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
- 
+
   let url;
   try { url = new URL(req.url); } catch (e) { return; }
- 
+
   // Never cache Supabase API — must always be live
   if (url.hostname.endsWith('.supabase.co')) return;
   // Skip chrome-extension and other non-http(s) protocols
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
- 
+
   const isHtml = req.mode === 'navigate'
     || (req.headers.get('accept') || '').includes('text/html');
- 
+
   if (isHtml) {
     // Network-first for HTML so updates always reach users.
     // Falls back to cache only if network fails (offline).
@@ -58,7 +58,7 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
- 
+
   // Other resources (JS, CSS, icons, fonts, CDN libs): cache-first
   event.respondWith(
     caches.match(req).then(cached => {
@@ -75,9 +75,8 @@ self.addEventListener('fetch', event => {
     })
   );
 });
- 
+
 // Allow page to force-skip-waiting via postMessage
 self.addEventListener('message', event => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
- 
