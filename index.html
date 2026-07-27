@@ -962,10 +962,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v6.11 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v6.12 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v6.11</span>
+    <span style="opacity:.35;margin-left:6px">v6.12</span>
   </div>
 </div>
 
@@ -1049,7 +1049,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.11</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.12</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1592,7 +1592,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v6.11] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v6.12] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -4928,7 +4928,7 @@ window.restoreLossType = function(id){
 };
 
 // ============================================================
-// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.11)
+// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.12)
 // ============================================================
 function renderDriverIncidents(page){
   if(!isFeatureEnabled('driver_timeline')){
@@ -6014,7 +6014,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.11</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.12</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -6481,7 +6481,10 @@ window.saveNewEntry = function(){
 
 // ---------- MANAGER: MY ENTRIES ----------
 function renderMyEntries(page){
-  const mine = state.entries.filter(e => e.manager_id===state.user.id);
+  // Coerce both sides to string — some Supabase driver versions return
+  // manager_id as a string while state.user.id from login is a number.
+  // Strict === was silently dropping every entry.
+  const mine = state.entries.filter(e => String(e.manager_id) === String(state.user.id));
   const today = new Date(); today.setHours(0,0,0,0);
   const todayCount = mine.filter(e=>new Date(e.fill_time||e.created_at).getTime() >= today.getTime()).length;
   const todayLiters = mine.filter(e=>new Date(e.fill_time||e.created_at).getTime() >= today.getTime()).reduce((s,e)=>s+(+e.quantity||0),0);
@@ -6799,7 +6802,7 @@ function renderManagerIncidents(page){
     heading = 'All Reported Incidents';
   } else {
     // 'own' mode — only entries reported by this manager
-    list = state.incidents.filter(i => i.manager_id === state.user.id);
+    list = state.incidents.filter(i => String(i.manager_id) === String(state.user.id));
     heading = 'Incidents You Reported';
   }
   list.sort((a,b) => new Date(b.incident_date||b.created_at) - new Date(a.incident_date||a.created_at));
@@ -7241,7 +7244,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.11</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.12</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
