@@ -962,10 +962,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v6.15 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v6.16 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v6.15</span>
+    <span style="opacity:.35;margin-left:6px">v6.16</span>
   </div>
 </div>
 
@@ -1049,7 +1049,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.15</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.16</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1592,7 +1592,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v6.15] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v6.16] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -2224,14 +2224,38 @@ async function pullAll(){
   if(!sb) return;
   try{
     state.syncing = true; _syncingStart = Date.now(); updateSyncPill();
+
+    // Supabase REST caps rows-per-request at 1000. For entries + incidents
+    // (which grow unbounded), we page through the whole table with .range()
+    // chunks and concatenate — otherwise older entries silently drop and
+    // manager pages like "My Entries" show incomplete history.
+    async function fetchAllPaginated(table, orderCol){
+      const chunk = 1000;
+      let all = [];
+      let from = 0;
+      // Hard safety cap: 50 * 1000 = 50 000 rows. Well beyond any realistic fleet.
+      for(let i = 0; i < 50; i++){
+        const res = await sb.from(table)
+          .select('*')
+          .order(orderCol, {ascending:false})
+          .range(from, from + chunk - 1);
+        if(res.error) return { data: all, error: res.error };
+        const rows = res.data || [];
+        all = all.concat(rows);
+        if(rows.length < chunk) break;   // reached the end
+        from += chunk;
+      }
+      return { data: all, error: null };
+    }
+
     const [veh, mgr, cf, ent, st, lss, inc, ops] = await Promise.all([
       sb.from('vehicles').select('*').order('name'),
       sb.from('managers').select('*').order('id'),
       sb.from('custom_fields').select('*').order('sort_order'),
-      sb.from('entries').select('*').order('fill_time',{ascending:false}).limit(2000),
+      fetchAllPaginated('entries', 'fill_time'),
       sb.from('settings').select('*'),
       sb.from('losses').select('*').order('sort_order'),
-      sb.from('driver_incidents').select('*').order('incident_date',{ascending:false}).limit(2000),
+      fetchAllPaginated('driver_incidents', 'incident_date'),
       sb.from('operation_managers').select('*').order('id'),
     ]);
 
@@ -4928,7 +4952,7 @@ window.restoreLossType = function(id){
 };
 
 // ============================================================
-// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.15)
+// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.16)
 // ============================================================
 function renderDriverIncidents(page){
   if(!isFeatureEnabled('driver_timeline')){
@@ -6014,7 +6038,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.15</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.16</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -7279,7 +7303,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.15</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.16</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
