@@ -962,10 +962,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v6.16 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v6.17 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v6.16</span>
+    <span style="opacity:.35;margin-left:6px">v6.17</span>
   </div>
 </div>
 
@@ -1049,7 +1049,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.16</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.17</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1592,7 +1592,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v6.16] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v6.17] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -2226,23 +2226,27 @@ async function pullAll(){
     state.syncing = true; _syncingStart = Date.now(); updateSyncPill();
 
     // Supabase REST caps rows-per-request at 1000. For entries + incidents
-    // (which grow unbounded), we page through the whole table with .range()
-    // chunks and concatenate — otherwise older entries silently drop and
-    // manager pages like "My Entries" show incomplete history.
-    async function fetchAllPaginated(table, orderCol){
+    // (which grow unbounded), we page through the table with .range() chunks
+    // — but with a HARD upper bound to prevent slow renders on huge datasets.
+    //
+    // Sizing: 5000 rows = ~5-10 MB in memory ≈ 3-5 years of typical fleet data.
+    // Beyond that, we stop pulling — old records still safe on server, just
+    // not cached locally. Admin can view via server-side queries when needed.
+    async function fetchAllPaginated(table, orderCol, maxRows){
       const chunk = 1000;
+      const cap = maxRows || 5000;
       let all = [];
       let from = 0;
-      // Hard safety cap: 50 * 1000 = 50 000 rows. Well beyond any realistic fleet.
-      for(let i = 0; i < 50; i++){
+      while(from < cap){
+        const upper = Math.min(from + chunk - 1, cap - 1);
         const res = await sb.from(table)
           .select('*')
           .order(orderCol, {ascending:false})
-          .range(from, from + chunk - 1);
+          .range(from, upper);
         if(res.error) return { data: all, error: res.error };
         const rows = res.data || [];
         all = all.concat(rows);
-        if(rows.length < chunk) break;   // reached the end
+        if(rows.length < chunk) break;   // reached the end of the table
         from += chunk;
       }
       return { data: all, error: null };
@@ -2252,10 +2256,12 @@ async function pullAll(){
       sb.from('vehicles').select('*').order('name'),
       sb.from('managers').select('*').order('id'),
       sb.from('custom_fields').select('*').order('sort_order'),
-      fetchAllPaginated('entries', 'fill_time'),
+      // Entries: cap at 5000 (newest first) — covers years of typical fleet
+      fetchAllPaginated('entries', 'fill_time', 5000),
       sb.from('settings').select('*'),
       sb.from('losses').select('*').order('sort_order'),
-      fetchAllPaginated('driver_incidents', 'incident_date'),
+      // Incidents: cap at 2000 — normally very few reports
+      fetchAllPaginated('driver_incidents', 'incident_date', 2000),
       sb.from('operation_managers').select('*').order('id'),
     ]);
 
@@ -3381,8 +3387,19 @@ function renderEntriesTable(entries, opts={}){
       ${cta}
     </div>`;
   }
-  if(viewMode === 'cards') return toolbar + renderEntriesCardsView(entries, opts);
-  return toolbar + renderEntriesTableView(entries, opts);
+  // Performance guard: rendering thousands of rows freezes the browser.
+  // Cap at 500 (still generous) with a friendly notice if there's more.
+  // Users can narrow with filters (date range, vehicle, manager) to see older data.
+  const RENDER_CAP = 500;
+  const cappedEntries = entries.length > RENDER_CAP ? entries.slice(0, RENDER_CAP) : entries;
+  const capMessage = entries.length > RENDER_CAP
+    ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:12px;color:#1e40af">
+        ℹ️ Showing latest <b>${fmtNum(RENDER_CAP)}</b> of <b>${fmtNum(entries.length)}</b> entries.
+        Use date or vehicle filters above to see older entries.
+      </div>`
+    : '';
+  if(viewMode === 'cards') return toolbar + capMessage + renderEntriesCardsView(cappedEntries, opts);
+  return toolbar + capMessage + renderEntriesTableView(cappedEntries, opts);
 }
 
 // Helper: re-render the dashboard while preserving horizontal + vertical scroll
@@ -4952,7 +4969,7 @@ window.restoreLossType = function(id){
 };
 
 // ============================================================
-// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.16)
+// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.17)
 // ============================================================
 function renderDriverIncidents(page){
   if(!isFeatureEnabled('driver_timeline')){
@@ -6038,7 +6055,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.16</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.17</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -7303,7 +7320,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.16</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.17</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
