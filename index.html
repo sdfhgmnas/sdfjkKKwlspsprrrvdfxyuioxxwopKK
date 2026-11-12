@@ -962,10 +962,10 @@ body.lightbg .admin-btn{
       <button class="calc-btn eq" data-k="=">=</button>
     </div>
   </div>
-  <!-- v6.17 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
+  <!-- v6.18 indicator: tiny dot bottom-center. Visible when user taps any button (briefly). -->
   <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;pointer-events:none;font-size:9px;color:#555;letter-spacing:1px">
     <span id="calc-debug" style="display:inline-block;min-width:8px;color:#888"></span>
-    <span style="opacity:.35;margin-left:6px">v6.17</span>
+    <span style="opacity:.35;margin-left:6px">v6.18</span>
   </div>
 </div>
 
@@ -1049,7 +1049,7 @@ body.lightbg .admin-btn{
 <!-- ==================== DASHBOARD SCREEN ==================== -->
 <div id="dash-screen" class="screen">
   <div class="topbar">
-    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.17</span></div>
+    <div class="brand" id="brand-label"><span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.18</span></div>
     <span id="sync-pill" class="sync-pill sync-online" onclick="manualRefresh()" title="Click to refresh data from server" style="cursor:pointer"><span class="dot"></span><span id="sync-text">Online</span></span>
     <div class="topbar-spacer"></div>
     <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
@@ -1592,7 +1592,7 @@ function handleCalcInput(e){
     handleCalcInput(e);
   }, evt === 'touchstart' ? { passive: true } : false);
 });
-console.log('[TASR Fuel v6.17] Calc input handlers attached at document level (click + pointerup + touchstart)');
+console.log('[TASR Fuel v6.18] Calc input handlers attached at document level (click + pointerup + touchstart)');
 
 // keyboard support
 document.addEventListener('keydown', e=>{
@@ -2547,6 +2547,37 @@ function isNewEntryDirty(){
 //
 // Returns an array of distinct names, most-recently-seen first.
 // Case-insensitive dedup, but original casing preserved in display.
+// Render a custom-field input (used in New Entry + Edit Entry forms).
+// Supports 4 types: text, number, date, select (dropdown). For select, options
+// come from field_options as a comma-separated string. A stored value that
+// is no longer in the current options list is still preserved — shown as a
+// disabled "(legacy)" option so historical entries don't lose their value.
+function renderCustomFieldInput(f, id, value){
+  const v = String(value||'');
+  const type = f.field_type;
+  if(type === 'select'){
+    const raw = (f.field_options||'').toString();
+    const opts = raw.split(',').map(s => s.trim()).filter(Boolean);
+    let html = `<select id="${id}" data-key="${escapeHtml(f.field_key)}" ${f.required?'data-req="1"':''}>`;
+    html += `<option value="">— select —</option>`;
+    let found = false;
+    for(const o of opts){
+      const selAttr = (v === o) ? ' selected' : '';
+      if(v === o) found = true;
+      html += `<option value="${escapeHtml(o)}"${selAttr}>${escapeHtml(o)}</option>`;
+    }
+    if(v && !found){
+      // Legacy value not in current options — preserve it
+      html += `<option value="${escapeHtml(v)}" selected>${escapeHtml(v)} (legacy)</option>`;
+    }
+    html += `</select>`;
+    return html;
+  }
+  const inputType = type === 'number' ? 'number' : type === 'date' ? 'date' : 'text';
+  const inputMode = type === 'number' ? ' inputmode="decimal"' : '';
+  return `<input type="${inputType}" id="${id}" data-key="${escapeHtml(f.field_key)}" ${f.required?'data-req="1"':''}${inputMode} value="${escapeHtml(v)}">`;
+}
+
 function getKnownDrivers(){
   // 1. Build list of custom-field keys that look like they hold a driver name.
   //    Anything with "driver" in the key OR the label qualifies.
@@ -4969,7 +5000,7 @@ window.restoreLossType = function(id){
 };
 
 // ============================================================
-// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.17)
+// OWNER: DRIVER INCIDENTS (basic list — full timeline in v6.18)
 // ============================================================
 function renderDriverIncidents(page){
   if(!isFeatureEnabled('driver_timeline')){
@@ -5403,26 +5434,45 @@ function renderCustomFields(page){
       ${state.customFields.length===0
         ? '<div class="empty">No custom fields. Built-in fields (vehicle, HMR, quantity, time, source) are always present.</div>'
         : `<div class="table-wrap"><table>
-            <thead><tr><th>Label</th><th>Type</th><th>Required</th><th></th></tr></thead>
-            <tbody>${state.customFields.map(f=>`
+            <thead><tr><th>Label</th><th>Type</th><th>Options / Details</th><th>Required</th><th></th></tr></thead>
+            <tbody>${state.customFields.map(f=>{
+              const isSelect = f.field_type === 'select';
+              const opts = isSelect ? (f.field_options||'').split(',').map(s=>s.trim()).filter(Boolean) : [];
+              const optsPreview = isSelect
+                ? (opts.length
+                    ? `<span style="font-size:11px;color:var(--text-muted)">${opts.slice(0,4).map(o=>`<span style="background:#f1f5f9;padding:1px 6px;border-radius:4px;margin-right:3px;display:inline-block;margin-bottom:2px">${escapeHtml(o)}</span>`).join('')}${opts.length>4?` <span style="color:var(--text-soft)">+${opts.length-4} more</span>`:''}</span>`
+                    : `<span style="font-size:11px;color:var(--danger)">⚠ No options set</span>`)
+                : '<span style="color:var(--text-soft);font-size:11px">—</span>';
+              return `
               <tr>
                 <td><b>${escapeHtml(f.field_label)}</b></td>
-                <td><span class="badge info">${f.field_type}</span></td>
+                <td><span class="badge info">${isSelect?'🔽 select':f.field_type}</span></td>
+                <td>${optsPreview}</td>
                 <td>${f.required?'<span class="badge warn">Required</span>':'<span class="badge">Optional</span>'}</td>
                 <td><div class="row-actions">
                   <button class="icon-btn" title="Edit" onclick="editCustomFieldModal('${f.id}')">✎</button>
                   <button class="icon-btn danger" title="Delete" onclick="confirmDeleteCF('${f.id}')">🗑</button>
                 </div></td>
-              </tr>`).join('')}
+              </tr>`;}).join('')}
             </tbody></table></div>`}
     </div>
   `;
 }
 window.addCustomFieldModal = function(){
   openModal('Add Custom Field', `
-    <div class="form-row"><label>Field label *</label><input id="cf-label" placeholder="e.g. Driver Name, Route, Project"></div>
+    <div class="form-row"><label>Field label *</label><input id="cf-label" placeholder="e.g. Driver Name, Route, Fuel Pump"></div>
     <div class="form-row"><label>Type</label>
-      <select id="cf-type"><option value="text">Text</option><option value="number">Number</option><option value="date">Date</option></select>
+      <select id="cf-type" onchange="toggleCfOptionsRow()">
+        <option value="text">Text</option>
+        <option value="number">Number</option>
+        <option value="date">Date</option>
+        <option value="select">Select / Dropdown</option>
+      </select>
+    </div>
+    <div class="form-row" id="cf-options-row" style="display:none">
+      <label>Dropdown options <span style="font-weight:400;color:var(--text-muted);font-size:11px">— comma separated</span></label>
+      <textarea id="cf-options" rows="3" placeholder="e.g. HP Petrol Pump, Indian Oil, BP, Reliance, Shell, Other" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;resize:vertical"></textarea>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">💡 Last option as "Other" helps managers log unknown values.</div>
     </div>
     <div class="form-row"><label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)">
       <input type="checkbox" id="cf-req" style="width:auto;transform:scale(1.2)"> Required
@@ -5430,13 +5480,27 @@ window.addCustomFieldModal = function(){
     <button class="btn" style="width:100%" onclick="saveCustomField()">Save</button>
   `);
 };
+// Toggle visibility of the dropdown-options textarea when type changes.
+window.toggleCfOptionsRow = function(){
+  const type = document.getElementById('cf-type').value;
+  const row = document.getElementById('cf-options-row');
+  if(row) row.style.display = type === 'select' ? '' : 'none';
+};
 window.saveCustomField = function(){
   const label = $('#cf-label').value.trim();
   if(!label){ toast('Label required','err'); return; }
+  const type = $('#cf-type').value;
+  // For select-type, require at least one option
+  let options = '';
+  if(type === 'select'){
+    options = ($('#cf-options').value || '').trim();
+    if(!options){ toast('Please enter at least one dropdown option','err'); return; }
+  }
   addCustomField({
     field_label:label,
     field_key:'cf_'+label.toLowerCase().replace(/[^a-z0-9]+/g,'_').slice(0,20)+'_'+Date.now().toString(36).slice(-4),
-    field_type:$('#cf-type').value, required:$('#cf-req').checked,
+    field_type:type, required:$('#cf-req').checked,
+    field_options: options,
     sort_order:state.customFields.length,
   });
   closeModal(); renderDash(); toast('Field added','ok');
@@ -5446,11 +5510,17 @@ window.editCustomFieldModal = function(id){
   openModal('Edit Field', `
     <div class="form-row"><label>Field label</label><input id="cf-label" value="${escapeHtml(f.field_label)}"></div>
     <div class="form-row"><label>Type</label>
-      <select id="cf-type">
+      <select id="cf-type" onchange="toggleCfOptionsRow()">
         <option value="text" ${f.field_type==='text'?'selected':''}>Text</option>
         <option value="number" ${f.field_type==='number'?'selected':''}>Number</option>
         <option value="date" ${f.field_type==='date'?'selected':''}>Date</option>
+        <option value="select" ${f.field_type==='select'?'selected':''}>Select / Dropdown</option>
       </select>
+    </div>
+    <div class="form-row" id="cf-options-row" style="display:${f.field_type==='select'?'':'none'}">
+      <label>Dropdown options <span style="font-weight:400;color:var(--text-muted);font-size:11px">— comma separated</span></label>
+      <textarea id="cf-options" rows="3" placeholder="e.g. HP Petrol Pump, Indian Oil, BP, Reliance, Shell, Other" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;resize:vertical">${escapeHtml(f.field_options||'')}</textarea>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">💡 Changing options will NOT affect past entries.</div>
     </div>
     <div class="form-row"><label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)">
       <input type="checkbox" id="cf-req" ${f.required?'checked':''} style="width:auto;transform:scale(1.2)"> Required
@@ -5459,9 +5529,16 @@ window.editCustomFieldModal = function(id){
   `);
 };
 window.saveEditCF = function(id){
+  const type = $('#cf-type').value;
+  let options = '';
+  if(type === 'select'){
+    options = ($('#cf-options').value || '').trim();
+    if(!options){ toast('Please enter at least one dropdown option','err'); return; }
+  }
   updateCustomField(id, {
     field_label:$('#cf-label').value.trim(),
-    field_type:$('#cf-type').value, required:$('#cf-req').checked,
+    field_type:type, required:$('#cf-req').checked,
+    field_options: options,
   });
   closeModal(); renderDash(); toast('Updated','ok');
 };
@@ -6055,7 +6132,7 @@ function renderSettings(page){
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
         💡 Wipe button erases local data on this device only — server data is safe.
       </div>
-      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.17</div>
+      <div style="font-size:10px;color:var(--text-soft);margin-top:14px;text-align:right">v6.18</div>
     </div>
   `;
   $('#set-calc').addEventListener('change', e=>{
@@ -6194,7 +6271,7 @@ function renderNewEntry(page){
           ${state.customFields.map((f, i)=>`
             <div class="form-row" ${i === state.customFields.length-1 ? 'style="margin-bottom:0"' : ''}>
               <label>${escapeHtml(f.field_label)} ${f.required?'*':''}</label>
-              <input type="${f.field_type==='number'?'number':f.field_type==='date'?'date':'text'}" id="ne-cf-${f.id}" data-key="${f.field_key}" ${f.required?'data-req="1"':''} ${f.field_type==='number'?'inputmode="decimal"':''}>
+              ${renderCustomFieldInput(f, 'ne-cf-'+f.id, '')}
             </div>
           `).join('')}
         </div>
@@ -6982,7 +7059,7 @@ window.editEntryModal = function(id){
     ${state.customFields.map(f=>`
       <div class="form-row">
         <label>${escapeHtml(f.field_label)}</label>
-        <input type="${f.field_type==='number'?'number':f.field_type==='date'?'date':'text'}" id="ee-cf-${f.id}" value="${escapeHtml((e.custom_data||{})[f.field_key]||'')}">
+        ${renderCustomFieldInput(f, 'ee-cf-'+f.id, (e.custom_data||{})[f.field_key]||'')}
       </div>
     `).join('')}
     <button class="btn" style="width:100%" onclick="saveEditEntry('${id}')">Save Changes</button>
@@ -7320,7 +7397,7 @@ migrateIdsToUuid();
     brandEl.innerHTML =
       escapeHtml(first) +
       (rest ? ' <span class="accent">'+escapeHtml(rest)+'</span>' : '') +
-      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.17</span>';
+      ' <span style="font-size:10px;color:var(--text-soft);font-weight:500">v6.18</span>';
   }
   // Page <title> updates only after calculator unlock; calculator stays as "Calculator" disguise.
 })();
